@@ -31,8 +31,11 @@ nào chưa hoàn tất; không lặp thao tác cài đặt nhiều lần chỉ �
 ## Trước khi bắt đầu
 
 Chuẩn bị Windows, một bản Revit đã cài và đăng nhập client AI mà bạn muốn dùng:
-Codex, ClaudeCode hoặc Antigravity. Bạn không cần cài .NET SDK, không cần build
-C# và không cần tự tìm Revit API.
+Codex, ClaudeCode hoặc Antigravity. Khi đi từ GitHub source, prompt tại
+`START_HERE.md` cho phép Agent tự cài Git, Node.js LTS/npm và .NET SDK 10 chính
+thức bằng `winget`, rồi tự clone/build; học viên không cần tự gõ các lệnh đó.
+Với learner release đã đóng gói, Agent có thể bỏ qua Git/.NET/build nếu artifact
+đúng năm đã có sẵn.
 
 Bạn cũng cần có quyền cài phần mềm trên máy và biết chính xác phiên bản Revit
 đang dùng. Ví dụ, bộ thông tin chuẩn bị là:
@@ -74,10 +77,13 @@ Agent cần giải thích kết quả như sau:
   sửa an toàn, ví dụ cài Node.js LTS hoặc chọn đúng artifact.
 - `CẦN BẠN THỰC HIỆN`: cần việc bên ngoài như đóng Revit hoặc xác nhận cài đặt.
 
-Nếu thiếu Node/npm, cài Node.js LTS theo hướng dẫn của người phụ trách rồi chạy
-`Check` lại. Nếu thiếu dependency Node nhưng đã có `package-lock.json`, bước
-Install sau khi được xác nhận có thể tự chuẩn bị dependency và build Node; học
-viên không phải tự gõ `npm install`.
+Nếu thiếu Git, Node/npm hoặc .NET SDK 10 trong quy trình GitHub, Agent phải dùng
+`winget` cài đúng các gói `Git.Git`, `OpenJS.NodeJS.LTS` và
+`Microsoft.DotNet.SDK.10` còn thiếu, làm mới PATH rồi đọc lại version. `npm` đi
+kèm Node.js LTS, không cài riêng từ nguồn khác. Nếu thiếu dependency Node nhưng
+đã có `package-lock.json`, Agent tự chạy `npm ci` và build Node; học viên không
+phải tự gõ `npm install`. Chỉ chuyển sang `CẦN BẠN THỰC HIỆN` khi thiếu winget,
+UAC/quyền bị chặn hoặc installer chính thức thất bại.
 
 ## Bước 2 — Xác nhận cài đặt
 

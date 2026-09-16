@@ -84,6 +84,7 @@ $allow = @(
     'tests\knowledge_search_test.mjs',
     'tests\ribbon_toggle_static_contract.py',
     'tests\demo_workflow_static_contract.py',
+    'tests\github_install_prompt_static_contract.py',
     'tests\source_format_validation.py',
     'tests\multiversion_build_guards.ps1',
     'tests\learner_package_check.mjs'
@@ -155,7 +156,8 @@ foreach ($required in @(
     'contracts\McpContracts.cs',
     'MCP\Core\CoreRuntimeManager.cs',
     'MCP\Core\McpRibbon.cs',
-    'tests\demo_workflow_static_contract.py'
+    'tests\demo_workflow_static_contract.py',
+    'tests\github_install_prompt_static_contract.py'
 )) {
     if (!(Test-Path -LiteralPath (Join-Path $output $required))) {
         throw "Incomplete public source export: $required"

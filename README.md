@@ -22,8 +22,14 @@ evidence tương ứng. Xem [COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
 ## Bắt đầu từ source
 
-Yêu cầu: Windows, Node.js/npm, .NET SDK theo `global.json`, và Revit/API bundle
-đúng năm nếu muốn build add-in.
+Khuyến nghị mở [START_HERE.md](START_HERE.md), sao chép prompt duy nhất và dán
+vào AI client. Prompt cho phép AI tự cài Git, Node.js LTS/npm và .NET SDK 10 từ
+`winget`, clone repository, build và chạy Check; học viên không phải tự cài từng
+prerequisite. AI vẫn phải dừng tại checkpoint trước khi cài add-in, sửa cấu hình
+client hoặc tác động tới Revit/model.
+
+Nếu tự thao tác source, yêu cầu là Windows, Git, Node.js/npm, .NET SDK theo
+`global.json`, và Revit/API bundle đúng năm nếu muốn build add-in.
 
 ```powershell
 npm ci --prefix .\MCP-Server

@@ -5,9 +5,11 @@ học nào. Trong chương trình phễu, học viên chỉ được hướng d�
 một buổi: kiểm tra/cài đặt trước, sau đó có thể chạy pilot MCP 60 phút trên
 Project copy đã được phép.
 
-Học viên bắt đầu từ `START_HERE.md`. Agent đọc source-of-truth, hỏi phiên bản
-Revit/client, giải thích bằng ngôn ngữ dễ hiểu và luôn kèm ví dụ khi đặt câu
-hỏi.
+Học viên bắt đầu từ `START_HERE.md`. Prompt trong đó cho phép Agent tự cài Git,
+Node.js LTS/npm và .NET SDK 10 chính thức bằng `winget`, sau đó clone/build source.
+Agent hỏi phiên bản Revit/client/thư mục đích, giải thích bằng ngôn ngữ dễ hiểu
+và luôn kèm ví dụ khi đặt câu hỏi. Add-in/client và mọi model write vẫn có
+checkpoint riêng.
 
 - `LEARNER_GUIDE.md`: quy trình một buổi cài đặt, kiểm tra kết nối và gỡ/khôi phục.
 - `60-MINUTE-MCP-PILOT.md`: dựng route MEP, quantity, Sheet và Family sau khi

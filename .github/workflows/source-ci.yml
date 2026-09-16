@@ -60,6 +60,7 @@ jobs:
           python .\tests\combine_static_contract.py
           python .\tests\ribbon_toggle_static_contract.py
           python .\tests\demo_workflow_static_contract.py
+          python .\tests\github_install_prompt_static_contract.py
           python .\tests\source_format_validation.py
 
       - name: Run .NET contract checks

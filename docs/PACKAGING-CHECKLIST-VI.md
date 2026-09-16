@@ -67,10 +67,12 @@ khi kết luận chưa đạt.
 
 - [x] [START_HERE.md](../START_HERE.md) là điểm bắt đầu duy nhất.
 - [x] `START_HERE.md` có đúng một prompt mở đầu.
-- [x] Prompt yêu cầu Agent đọc source-of-truth, hỏi Revit version/client và
-  chạy Check read-only trước; mỗi câu hỏi có ví dụ trả lời.
-- [x] Prompt yêu cầu hỏi trước khi dùng model khách hàng/Central hoặc thực hiện
-  thao tác ảnh hưởng dữ liệu; không tự ý Save/Sync, build C# hoặc cài package.
+- [x] Prompt yêu cầu Agent hỏi Revit version/client/thư mục đích, tự bootstrap
+  prerequisite GitHub rồi chạy Check read-only; mỗi câu hỏi có ví dụ trả lời.
+- [x] Prompt coi việc dán prompt là ủy quyền trước để cài đúng `Git.Git`,
+  `OpenJS.NodeJS.LTS`, `Microsoft.DotNet.SDK.10`, clone, `npm ci` và build source;
+  vẫn hỏi trước khi cài add-in/cấu hình client, dùng model khách hàng/Central
+  hoặc thực hiện thao tác ảnh hưởng dữ liệu; không tự ý Save/Sync.
 - [x] [LEARNER_GUIDE.md](learning/LEARNER_GUIDE.md) tách rõ phần cài đặt/kiểm tra
   và phần pilot runtime trên project copy đã được phép.
 - [x] [learning/README.md](learning/README.md) trỏ tới learner guide, pilot 60 phút,
@@ -220,7 +222,9 @@ Get-ChildItem -LiteralPath $out -Recurse -File | Measure-Object
 - [x] JSON/TOML hợp lệ, không BOM, không stale path.
 - [x] Check không tạo ownership manifest hoặc backup.
 - [x] Check không sửa client config; checksum trước/sau của cả ba client không đổi.
-- [x] Nếu thiếu Node.js/npm, báo hướng dẫn cài Node.js LTS rõ ràng.
+- [x] Với GitHub source, nếu thiếu Git/Node.js/npm/.NET SDK 10 thì Agent tự cài
+  package chính thức bằng `winget`, làm mới PATH và kiểm tra version; chỉ dừng
+  khi thiếu winget, UAC/quyền bị chặn hoặc installer thất bại.
 - [x] Sau xác nhận Install, nếu thiếu dependency hoặc Node build thì bộ cài tự
   chạy cài dependency, tạo Node build và chỉ giữ production dependencies; không
   build C#.
