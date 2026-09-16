@@ -1,0 +1,24 @@
+[CmdletBinding()]
+param([Parameter(Mandatory)][ValidateSet('2019','2020','2021','2022','2023','2024','2025','2026','2027')][string]$RevitVersion, [switch]$ConfirmInstall)
+
+$ErrorActionPreference = 'Stop'
+if (!$ConfirmInstall) { throw 'Safety stop. Re-run with -ConfirmInstall only after every Revit window is closed.' }
+if (Get-Process Revit -ErrorAction SilentlyContinue) { throw 'Close every Revit process before MCP migration.' }
+$root = Split-Path -Parent $PSScriptRoot
+$artifact = Join-Path $root "artifacts\Revit$RevitVersion"
+if (!(Test-Path (Join-Path $artifact 'DSCons.RevitMcp.dll'))) { throw "Build first: .\scripts\build-mcp.ps1 -RevitVersion $RevitVersion" }
+if (!(Test-Path (Join-Path $artifact 'DSCons.RevitMcp.addin'))) { throw "Build artifact is missing the canonical DSCons.RevitMcp.addin manifest." }
+if (!(Test-Path (Join-Path $artifact 'runtime\DSCons.RevitMcp.CoreRuntime.dll'))) { throw "Build artifact is missing the CoreRuntime DLL." }
+$addinRoot = Join-Path $env:APPDATA "Autodesk\Revit\Addins\$RevitVersion"
+$target = Join-Path $addinRoot 'DSConsRevitMcp'
+$backup = Join-Path $env:LOCALAPPDATA "DSCons\RevitMcp\migration-backup\$RevitVersion"
+New-Item -ItemType Directory -Force -Path $target,$backup | Out-Null
+
+# Exact migration scope; it never enumerates or alters other add-ins/years.
+foreach ($legacy in @('mcp-servers-for-revit.addin','revit-mcp.addin','revit_mcp_plugin')) {
+    $source = Join-Path $addinRoot $legacy
+    if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $backup -Recurse -Force; Remove-Item -LiteralPath $source -Recurse -Force }
+}
+Get-ChildItem -LiteralPath $artifact -Force | Where-Object { $_.Name -ne 'DSCons.RevitMcp.addin' } | Copy-Item -Destination $target -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $artifact 'DSCons.RevitMcp.addin') -Destination (Join-Path $addinRoot 'DSCons.RevitMcp.addin') -Force
+Write-Host "Installed DSCons Revit MCP for Revit $RevitVersion. Legacy MCP backup: $backup"

@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "source": "npm production dependencies pinned in package-lock.json",
+  "assets": [
+    {
+      "file": "eng.traineddata.gz",
+      "package": "@tesseract.js-data/eng@1.0.0",
+      "package_path": "4.0.0_best_int/eng.traineddata.gz",
+      "sha256": "45B4CB346724AC1774F1C36F42F182B887BCDB28EBE63E6FFF90AC41F3FCFF91"
+    },
+    {
+      "file": "vie.traineddata.gz",
+      "package": "@tesseract.js-data/vie@1.0.0",
+      "package_path": "4.0.0_best_int/vie.traineddata.gz",
+      "sha256": "2284F610F262A1B19EC8DF9F196B9FF6CE38DDB4A66329E998941DF4B8961C8D"
+    }
+  ]
+}
