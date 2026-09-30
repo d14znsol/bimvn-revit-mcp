@@ -11,7 +11,7 @@
     "build"
   ],
   "scripts": {
-    "build": "node -e \"require('fs').rmSync('build',{recursive:true,force:true})\" && tsc",
+    "build": "node scripts/build-server.mjs",
     "start": "node build/index.js",
     "dev": "tsc --watch"
   },

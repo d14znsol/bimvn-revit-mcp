@@ -18,14 +18,15 @@ for (const year of manifest.requestedRevitVersions) {
   if (record.status === 'skipped' && (!Array.isArray(record.missingDependencies) || !record.reason)) throw new Error(`Skipped Revit ${year} lacks reason metadata`);
 }
 for (const year of manifest.revitVersions) for (const file of ['DSCons.RevitMcp.dll','DSCons.RevitMcp.Contracts.dll','DSCons.RevitMcp.addin','runtime/DSCons.RevitMcp.CoreRuntime.dll']) must(`artifacts/Revit${year}/${file}`);
-for (const file of ['START_HERE.md','LICENSE','THIRD-PARTY-NOTICES.md','docs/learning/LEARNER_GUIDE.md','docs/learning/60-MINUTE-MCP-PILOT.md','docs/FAMILY-TEMPLATE-AUTO-RESOLUTION.md','docs/MCP-RIBBON-CONTROLS.md','docs/COMPATIBILITY.md','docs/learning/README.md','MCP-Server/build/index.js','MCP-Server/node_modules/@modelcontextprotocol/sdk/package.json','scripts/student-setup.ps1','scripts/install-mcp.ps1']) must(file);
+for (const file of ['START_HERE.md','LICENSE','THIRD-PARTY-NOTICES.md','docs/learning/LEARNER_GUIDE.md','docs/learning/60-MINUTE-MCP-PILOT.md','docs/FAMILY-TEMPLATE-AUTO-RESOLUTION.md','docs/FAMILY-BLUEPRINT-V3.md','docs/MODEL-TRANSFER-MEPF.md','docs/SOURCE-TO-PROJECT-MEPF.md','docs/CODEX-REVIT-CHAT-POC.md','docs/MCP-RIBBON-CONTROLS.md','docs/COMPATIBILITY.md','docs/learning/README.md','MCP-Server/build/index.js','MCP-Server/node_modules/@modelcontextprotocol/sdk/package.json','scripts/student-setup.ps1','scripts/install-mcp.ps1']) must(file);
 const start = fs.readFileSync(path.join(root,'START_HERE.md'),'utf8');
 if (start.includes('.agents/')) throw new Error('Learner entrypoint depends on private ledger');
 if (!start.includes('sản phẩm độc lập')) throw new Error('Learner entrypoint does not state the independent-product scope');
-if (!start.includes('pilot MCP 60 phút')) throw new Error('Learner entrypoint does not state the approved 60-minute MCP pilot');
-if (!start.includes('Agent tự suy ra Family category và tìm template đúng năm')) throw new Error('Learner entrypoint still depends on the learner finding a Family template');
-if (!start.includes('Metric Generic Model đúng năm') || !start.includes('đổi Family Category')) throw new Error('Learner entrypoint does not explain the approved Generic Model fallback and category change');
-if (!start.includes('Bật MCP') || !start.includes('không kill Node MCP Server')) throw new Error('Learner entrypoint does not explain the Revit-side MCP toggle boundary');
+if (!start.includes('pilot 60 phút')) throw new Error('Learner entrypoint does not state the approved 60-minute MCP pilot');
+if (!start.includes('node .\\MCP-Server\\scripts\\build-server.mjs')) throw new Error('Learner entrypoint does not use the deterministic MCP build entry point');
+if (!start.includes('Không tự tìm, tải hoặc thay thế Family RFA')) throw new Error('Learner entrypoint permits automatic RFA search or look-alike substitution');
+if (!start.includes('behavior thực sự tương đương') || !start.includes('không dùng cho fitting, 2D, Profile, Annotation, Tag')) throw new Error('Learner entrypoint does not bound Generic Model fallback by behavior and specialized-family exclusions');
+if (!start.includes('Bật MCP') || !start.includes('MCP.CoreRuntime')) throw new Error('Learner entrypoint does not explain the Revit-side MCP boundary');
 for (const phrase of ['Livestream','Track A','Track B','thử thách 7 ngày']) {
   if (start.includes(phrase)) throw new Error(`Learner entrypoint contains obsolete program flow: ${phrase}`);
 }

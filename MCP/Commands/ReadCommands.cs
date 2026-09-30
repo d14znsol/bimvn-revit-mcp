@@ -22,7 +22,7 @@ internal sealed class SystemStatusCommand : ReadCommand
     public override JObject Execute(UIApplication app, JObject args)
     {
         var doc = app.ActiveUIDocument?.Document;
-        return new JObject { ["server"] = McpConstants.ServerName, ["port"] = McpConstants.DefaultPort, ["document_open"] = doc != null, ["document"] = doc?.Title, ["read_only"] = doc?.IsReadOnly ?? false, ["workshared"] = doc?.IsWorkshared ?? false, ["central_direct"] = doc != null && MepSafety.IsCentralDirect(doc), ["safety_mode"] = "preview-auto-apply" };
+        return new JObject { ["server"] = McpConstants.ServerName, ["port"] = McpConstants.DefaultPort, ["runtime_build_marker"] = "family_shared_parameter_readback_v13", ["document_open"] = doc != null, ["document"] = doc?.Title, ["read_only"] = doc?.IsReadOnly ?? false, ["workshared"] = doc?.IsWorkshared ?? false, ["central_direct"] = doc != null && MepSafety.IsCentralDirect(doc), ["safety_mode"] = "preview-auto-apply" };
     }
 }
 internal sealed class DocumentInfoCommand : ReadCommand

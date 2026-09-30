@@ -1,6 +1,6 @@
 # DSCons Revit MCP — cài từ GitHub bằng AI
 
-Đây là điểm bắt đầu dành cho học viên. Sao chép **toàn bộ prompt duy nhất** bên
+Đây là điểm bắt đầu dành cho học viên của một sản phẩm độc lập. Sao chép **toàn bộ prompt duy nhất** bên
 dưới và dán vào Codex, Claude Code hoặc Google Antigravity. AI sẽ tự kiểm tra
 và, nếu còn thiếu, tự cài Git, Node.js LTS/npm và .NET SDK 10 từ nguồn chính
 thức trước khi tải source. Học viên không phải tự gõ từng lệnh cài prerequisite.
@@ -46,12 +46,12 @@ Sau khi có source, đọc theo thứ tự `AGENTS.md`, `PROJECT.md`, `docs/lear
 9. BUILD VÀ CHECK
 Tại root repository, chạy tuần tự và kiểm tra exit code:
 `npm.cmd ci --prefix .\MCP-Server --no-audit --no-fund`
-`npm.cmd run build --prefix .\MCP-Server`
+`node .\MCP-Server\scripts\build-server.mjs`
 `node .\tests\mcp_protocol_smoke.mjs`
 `.\scripts\build-mcp.ps1 -RevitVersion <NĂM_REVIT> -Configuration Release`
 `.\scripts\student-setup.ps1 -Mode Check -RevitVersion <NĂM_REVIT> -Client <CLIENT>`
 
-Thay placeholder bằng đúng câu trả lời của tôi, không dùng DLL năm khác. Build add-in chỉ được chạy khi tìm thấy đúng Revit/API bundle của năm đó. Nếu build hoặc Check lỗi, chẩn đoán nguyên nhân, sửa phần an toàn trong source/setup nếu phù hợp rồi chạy lại đúng bước lỗi; không lặp mù quáng và không hạ chuẩn kiểm tra. Xác nhận protocol vẫn đúng 46 tools.
+Thay placeholder bằng đúng câu trả lời của tôi, không dùng DLL năm khác. Build add-in chỉ được chạy khi tìm thấy đúng Revit/API bundle của năm đó. Nếu build hoặc Check lỗi, chẩn đoán nguyên nhân, sửa phần an toàn trong source/setup nếu phù hợp rồi chạy lại đúng bước lỗi; không lặp mù quáng và không hạ chuẩn kiểm tra. Đọc `tools/list` và capability manifest vừa build; không dùng số lượng tool cũ làm bằng chứng.
 
 10. CHECKPOINT CÀI ADD-IN VÀ CLIENT
 Sau khi build và Check đủ điều kiện, mô tả ngắn gọn chính xác việc Install sẽ chép add-in vào thư mục người dùng và cập nhật entry `dscons-revit-mcp` của client nào. Nếu Revit đang mở, yêu cầu tôi tự lưu công việc cần thiết và đóng toàn bộ Revit. Sau đó hỏi đúng một câu xác nhận có ví dụ: `Đã đóng Revit; xác nhận cài cho Revit 2023 và cấu hình Codex.` Chỉ sau câu trả lời tương đương mới chạy:
@@ -62,7 +62,7 @@ Không tự đóng hoặc tự mở Revit. Không xóa/cấu hình lại các MC
 Sau Install PASS, yêu cầu tôi tự mở đúng Revit. Hướng dẫn kiểm tra panel `DSCons MCP`; nếu nút ghi `Bật MCP`, yêu cầu tôi tự bấm nút đó. Sau đó kiểm tra read-only bằng trạng thái bridge, `document_info`, `get_active_view`, `get_selection` khi cần và capabilities. Trước mọi hành động phụ thuộc Revit, phải đọc lại document/view/selection ở lượt hiện tại. Không tạo/sửa model, không Save/Sync và không chạy pilot 60 phút nếu chưa có xác nhận riêng cho một Project copy local cùng thư mục demo được phép.
 
 12. QUY TẮC FAMILY VÀ DEMO SAU NÀY
-Khi pilot đã được xác nhận riêng, tự suy ra Family category và tự tìm template đúng năm: quạt/bơm dùng Mechanical Equipment, cửa gió dùng Air Terminal, van gió dùng Duct Accessory. Nếu thiếu template chuyên ngành, dùng Metric Generic Model đúng năm rồi đổi Family Category sang category đích trước khi tạo hình và đọc lại kết quả. Không bắt học viên tự tìm `.rft`, không dùng template năm khác và không tự nhận connector thử nghiệm là runtime-certified.
+Khi pilot đã được xác nhận riêng, Agent có thể dò **chỉ** Autodesk `.rft` đã cài cục bộ, đúng năm, theo Blueprint đã nêu rõ behavior/category/Part Type; ví dụ quạt/bơm thường cần Mechanical Equipment, cửa gió Air Terminal, van gió Duct Accessory. Không tự tìm, tải hoặc thay thế Family RFA của hãng hay chọn Family chỉ vì tên/category gần giống. Với Family nguồn, catalogue hoặc transfer, phải hỏi kỹ sư/người gửi nguồn có RFA tương thích, catalogue hoặc template chuẩn nào trước; thiếu hoặc mơ hồ thì gom câu hỏi và chặn phạm vi phụ thuộc. Generic Model chỉ là fallback có điều kiện khi behavior thực sự tương đương, template/category được read-back và Blueprint cho phép; không dùng cho fitting, 2D, Profile, Annotation, Tag hoặc bất kỳ Family chuyên biệt nào. Không dùng template năm khác và không tự nhận connector thử nghiệm là runtime-certified.
 
 13. ĐỊNH DẠNG BÁO CÁO
 Sau mỗi giai đoạn, báo bảng ngắn gồm `Thành phần | Trạng thái | Bằng chứng`. Trạng thái chỉ dùng `PASS`, `FAIL` hoặc `CẦN BẠN THỰC HIỆN`. Với prerequisite, ghi version thực tế sau cài; với clone ghi commit SHA; với build ghi năm/TFM/artifact; với Check ghi Node/npm/API/artifact/client/Revit process. Không đưa secret, tên khách hàng hay đường dẫn dữ liệu riêng vào báo cáo chia sẻ.
@@ -71,7 +71,7 @@ Sau mỗi giai đoạn, báo bảng ngắn gồm `Thành phần | Trạng thái 
 Không bịa version, path, ID, artifact, trạng thái Revit hoặc kết quả runtime. Nếu chưa kiểm tra, ghi `Chưa kiểm tra`. Không coi thiếu Git/Node/npm/.NET là lý do kết thúc khi winget vẫn hoạt động: phải tự cài rồi kiểm tra lại. Chỉ yêu cầu người dùng can thiệp khi có UAC, thiếu winget, thiếu quyền, thiếu/repair Revit Content, Revit cần được đóng/mở thủ công, hoặc cần checkpoint cho add-in/client/model. Không force-push, không xóa worktree, không dùng installer không rõ nguồn và không sửa model để chứng minh cài đặt.
 
 15. ĐIỀU KIỆN HOÀN TẤT
-Chỉ báo hoàn tất cài đặt khi: Git/Node/npm/.NET có version hợp lệ; repository đúng origin và có commit SHA; MCP Server build PASS; protocol có đúng 46 tools; artifact đúng năm Revit build PASS; `student-setup Check` đạt các dependency cần thiết; Install có ownership/backup và cấu hình đúng một client sau xác nhận; người dùng tự mở Revit; bridge cùng các lệnh đọc kết nối PASS. Phân biệt rõ `source/build PASS`, `install PASS`, `connection PASS` và `runtime workflow chưa kiểm tra`.
+Chỉ báo hoàn tất cài đặt khi: Git/Node/npm/.NET có version hợp lệ; repository đúng origin và có commit SHA; MCP Server build PASS; `tools/list` khớp capability manifest vừa build; artifact đúng năm Revit build PASS; `student-setup Check` đạt các dependency cần thiết; Install có ownership/backup và cấu hình đúng một client sau xác nhận; người dùng tự mở Revit; bridge cùng các lệnh đọc kết nối PASS. Phân biệt rõ `source/build PASS`, `install PASS`, `connection PASS` và `runtime workflow chưa kiểm tra`.
 ```
 
 Nếu máy không có `winget`, Windows chặn UAC hoặc Revit cần repair content, AI sẽ

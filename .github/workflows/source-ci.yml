@@ -42,26 +42,36 @@ jobs:
 
       - name: Build MCP Server
         shell: pwsh
-        run: npm run build --prefix .\MCP-Server
+        run: node .\MCP-Server\scripts\build-server.mjs
 
       - name: Run Node offline checks
         shell: pwsh
         run: |
           node .\tests\mcp_protocol_smoke.mjs
           node .\tests\family_evidence_test.mjs
+          node .\tests\family_acceptance_test.mjs
+          node .\tests\computer_use_evaluation_test.mjs
+          node .\tests\source_to_revit_proposal_test.mjs
+          node .\tests\mepf_evidence_governance_test.mjs
+          node .\tests\model_transfer_test.mjs
+          node .\tests\embedded_write_tool_coverage.mjs
           node .\tests\knowledge_search_test.mjs
+          node .\tests\embedded_chat_approval_test.mjs
 
       - name: Run static source checks
         shell: pwsh
         run: |
           python .\tests\family_static_contract.py
           python .\tests\family_platform_static_contract.py
+          python .\tests\family_constraint_static_contract.py
           python .\tests\v2_contract_check.py
           python .\tests\combine_static_contract.py
           python .\tests\ribbon_toggle_static_contract.py
           python .\tests\demo_workflow_static_contract.py
           python .\tests\github_install_prompt_static_contract.py
+          python .\tests\embedded_chat_static_contract.py
           python .\tests\source_format_validation.py
+          python .\tests\build_wrapper_static_contract.py
 
       - name: Run .NET contract checks
         shell: pwsh
@@ -70,6 +80,10 @@ jobs:
       - name: Verify Revit 2019-2027 build guards
         shell: pwsh
         run: .\tests\multiversion_build_guards.ps1
+
+      - name: Verify public source export boundary
+        shell: pwsh
+        run: .\scripts\export-public.ps1 -OutputRoot (Join-Path $env:RUNNER_TEMP 'dscons-public-export')
 
       - name: State the CI boundary
         shell: pwsh

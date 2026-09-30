@@ -1,9 +1,10 @@
 # Nút điều khiển MCP trong Revit
 
-Panel **DSCons MCP** có hai nút:
+Panel **DSCons MCP** có ba nút trên Revit 2023; các năm khác vẫn có hai nút MCP:
 
 | Nút | Tác dụng |
 | --- | --- |
+| **Chat AI · Thử nghiệm** | Mở panel chat dock bên phải, chọn Codex/Claude/Antigravity bằng tài khoản CLI của học viên. Claude cần >= 2.1.259; Antigravity chỉ bật khi kiểm isolation fail-closed. Chỉ xuất hiện trên Revit 2023 trong POC. |
 | **Bật/Tắt MCP** | Bật hoặc dừng CoreRuntime và cầu nối loopback bên trong Revit. Nhãn/icon đổi theo trạng thái. |
 | **Cập nhật Code** | Reload CoreRuntime sau khi build/publish; chỉ hoạt động khi MCP đang bật. |
 
@@ -31,3 +32,7 @@ bật lại, nếu client chưa tự reconnect, dùng Refresh MCP Servers trong 
 
 Việc bấm nút là thao tác do học viên thực hiện trong giao diện Revit. Agent không
 tự mở/đóng Revit hoặc điều khiển Ribbon nếu chưa được cho phép rõ ràng.
+
+Xem [hướng dẫn Chat AI POC](CODEX-REVIT-CHAT-POC.md) để biết phiên bản Codex,
+Claude, trạng thái Antigravity, cơ chế chat `đồng ý`/`hủy` sau Preview và
+checklist runtime.

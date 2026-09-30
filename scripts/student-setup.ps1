@@ -59,7 +59,9 @@ function Test-ProductionNodeDependencies {
     return $true
 }
 function Ensure-NodeRuntime {
-    if (!(Get-Command node -ErrorAction SilentlyContinue) -or !(Get-Command npm -ErrorAction SilentlyContinue)) {
+    $nodeExecutable = (Get-Command node.exe -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+    if (!$nodeExecutable) { $nodeExecutable = (Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1).Source }
+    if (!$nodeExecutable -or !(Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
         throw 'Node.js/npm is missing. Install a supported Node.js LTS release, then run Check again.'
     }
     if ((Test-ProductionNodeDependencies) -and (Test-Path -LiteralPath $server)) { return }
@@ -68,11 +70,11 @@ function Ensure-NodeRuntime {
     }
     Push-Location $serverRoot
     try {
-        & npm ci --ignore-scripts --no-audit --no-fund
+        & npm.cmd ci --ignore-scripts --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw 'Automatic Node dependency installation failed.' }
-        & npm run build
+        & $nodeExecutable '.\scripts\build-server.mjs'
         if ($LASTEXITCODE -ne 0) { throw 'Automatic Node MCP build failed.' }
-        & npm prune --omit=dev --ignore-scripts --no-audit --no-fund
+        & npm.cmd prune --omit=dev --ignore-scripts --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw 'Production dependency cleanup failed.' }
     }
     finally { Pop-Location }
@@ -85,7 +87,7 @@ if ($Mode -eq 'Check') {
     $rows = [System.Collections.Generic.List[string]]::new()
     $nodeOk = $null -ne (Get-Command node -ErrorAction SilentlyContinue)
     $rows.Add((ExistsText 'Node: tim thay.' 'Node: THIEU.' $nodeOk))
-    $npmOk = $null -ne (Get-Command npm -ErrorAction SilentlyContinue)
+    $npmOk = $null -ne (Get-Command npm.cmd -ErrorAction SilentlyContinue)
     $rows.Add((ExistsText 'npm: tim thay.' 'npm: THIEU.' $npmOk))
     $dependenciesOk = Test-ProductionNodeDependencies
     $rows.Add((ExistsText 'Node dependencies: san sang.' 'Node dependencies: THIEU; Install co the tu cai sau khi duoc xac nhan.' $dependenciesOk))
@@ -102,9 +104,9 @@ if ($Mode -eq 'Check') {
     $familyTemplateRoot = "C:\ProgramData\Autodesk\RVT $RevitVersion\Family Templates"
     $mechanicalTemplate = @(Get-ChildItem -LiteralPath $familyTemplateRoot -Recurse -File -Filter '*.rft' -ErrorAction SilentlyContinue | Where-Object { $_.Name -in @('Metric Mechanical Equipment.rft','Mechanical Equipment.rft') } | Select-Object -First 1)
     $genericTemplate = @(Get-ChildItem -LiteralPath $familyTemplateRoot -Recurse -File -Filter '*.rft' -ErrorAction SilentlyContinue | Where-Object { $_.Name -in @('Metric Generic Model.rft','Generic Model.rft') } | Select-Object -First 1)
-    if ($mechanicalTemplate.Count -gt 0) { $rows.Add(("Family template: tim thay Mechanical Equipment dung Revit {0}." -f $RevitVersion)) }
-    elseif ($genericTemplate.Count -gt 0) { $rows.Add(("Family template: se dung Metric Generic Model Revit {0} va tu doi Family Category truoc khi tao hinh." -f $RevitVersion)) }
-    else { $rows.Add(("Family template: THIEU ca Mechanical Equipment va Generic Model dung Revit {0}; can repair/install content." -f $RevitVersion)) }
+    if ($mechanicalTemplate.Count -gt 0) { $rows.Add(("Family template: tim thay Mechanical Equipment dung Revit {0}; Family van can Blueprint/source/behavior phu hop." -f $RevitVersion)) }
+    elseif ($genericTemplate.Count -gt 0) { $rows.Add(("Family template: chi tim thay Generic Model dung Revit {0}; khong tu fallback cho Family chuyen biet, can Blueprint/source xac nhan." -f $RevitVersion)) }
+    else { $rows.Add(("Family template: THIEU Mechanical Equipment/Generic Model dung Revit {0}; can repair content hoac cung cap nguon da xac minh." -f $RevitVersion)) }
     $serverOk = [bool](Test-Path -LiteralPath $server)
     $rows.Add((ExistsText 'MCP Server artifact: san sang.' 'MCP Server artifact: THIEU; DSCons can build release.' $serverOk))
     $artifactPaths = @(
@@ -115,6 +117,14 @@ if ($Mode -eq 'Check') {
     )
     $artifactOk = @($artifactPaths | Where-Object { !(Test-Path -LiteralPath $_) }).Count -eq 0
     $rows.Add((ExistsText ("Artifact Revit {0}: san sang." -f $RevitVersion) ("Artifact Revit {0}: THIEU." -f $RevitVersion) $artifactOk))
+    if ($RevitVersion -in @('2023','2025')) {
+        $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
+        if ($codexCommand) {
+            $codexVersion = (& $codexCommand.Source --version 2>$null | Out-String).Trim()
+            if ($codexVersion -match '0\.154\.0-alpha\.6\.2') { $rows.Add(("Chat AI thu nghiem Revit {0}: Codex CLI 0.154.0-alpha.6.2 da duoc kiem chung tai {1}." -f $RevitVersion,$codexCommand.Source)) }
+            else { $rows.Add(("Chat AI thu nghiem: Codex CLI '{0}' CHUA DUOC KIEM CHUNG; panel se khong tu nang cap." -f $codexVersion)) }
+        } else { $rows.Add('Chat AI thu nghiem: CHUA CO Codex CLI; tinh nang MCP qua client ngoai van doc lap.') }
+    }
     $revit = @(Get-Process -Name Revit -ErrorAction SilentlyContinue)
     if ($revit.Count) {
         $pids = ($revit | Select-Object -ExpandProperty Id) -join ', '

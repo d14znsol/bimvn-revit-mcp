@@ -92,7 +92,11 @@ foreach ($doc in @(
     'docs\learning\LEARNER_GUIDE.md',
     'docs\learning\60-MINUTE-MCP-PILOT.md',
     'docs\FAMILY-TEMPLATE-AUTO-RESOLUTION.md',
+    'docs\FAMILY-BLUEPRINT-V3.md',
+    'docs\MODEL-TRANSFER-MEPF.md',
+    'docs\SOURCE-TO-PROJECT-MEPF.md',
     'docs\MCP-RIBBON-CONTROLS.md',
+    'docs\CODEX-REVIT-CHAT-POC.md',
     'docs\learning\templates'
 )) { Copy-ItemSafe $doc (Join-Path $output $doc) }
 

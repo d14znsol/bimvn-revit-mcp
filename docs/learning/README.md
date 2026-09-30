@@ -13,7 +13,8 @@ checkpoint riêng.
 
 - `LEARNER_GUIDE.md`: quy trình một buổi cài đặt, kiểm tra kết nối và gỡ/khôi phục.
 - `60-MINUTE-MCP-PILOT.md`: dựng route MEP, quantity, Sheet và Family sau khi
-  kết nối PASS; Family Template được MCP tự dò theo năm/category.
+  kết nối PASS; Family chỉ dùng Blueprint/source đã xác nhận và template đúng
+  năm, không dùng Family RFA gần giống.
 - `../MCP-RIBBON-CONTROLS.md`: hai nút Bật/Tắt MCP và Cập nhật Code.
 - `templates/`: mẫu log buổi cài đặt và phiếu báo lỗi khi cần gửi hỗ trợ.
 

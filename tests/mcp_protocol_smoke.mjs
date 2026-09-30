@@ -28,7 +28,10 @@ child.stderr.on("data", (chunk) => { stderr += chunk; });
 
 function request(id, method, params = {}) {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Timeout waiting for ${method}`)); }, 5000);
+    // Loading the local PDF/OCR dependencies can take more than five seconds
+    // on a cold Windows CI or learner machine. Keep the protocol assertion
+    // bounded without treating dependency startup time as a transport failure.
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Timeout waiting for ${method}`)); }, 15000);
     pending.set(id, (message) => { clearTimeout(timer); pending.delete(id); resolve(message); });
     child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
   });
@@ -41,8 +44,8 @@ try {
 
   const listed = await request(2, "tools/list");
   const names = new Set((listed.result?.tools ?? []).map((item) => item.name));
-  if (names.size !== 46) throw new Error(`tools/list must expose exactly 46 tools, received ${names.size}`);
-  const legacy40 = [
+  if (names.size !== 70) throw new Error(`tools/list must expose exactly 70 tools, received ${names.size}`);
+  const legacy43 = [
     "system_status", "document_info", "get_active_view", "get_selection", "get_capabilities",
     "mep_element_detail", "mep_connector_network", "mep_filter_elements", "mep_qa_connectivity",
     "mep_preview", "mep_apply_preview", "mep_create_route", "mep_connect", "mep_disconnect",
@@ -50,12 +53,12 @@ try {
     "mep_network_explore", "coordination_links", "coordination_scan", "quantity_takeoff", "documentation_plan",
     "model_create_batch", "bim_changeset_preview", "bim_changeset_apply", "documentation_apply",
     "family_inspect", "family_axial_fan_preview", "family_axial_fan_apply", "family_load_place_preview",
-    "family_load_place_apply", "family_source_inspect", "family_spec_preview", "family_build_preview",
+    "family_load_place_apply", "family_shared_nested_probe_preview", "family_library_benchmark_preview", "family_routing_probe_preview", "family_break_into_ui_preflight", "family_break_into_ui_verify", "family_hosting_ui_preflight", "family_hosting_ui_verify", "family_source_inspect", "family_artifact_inspect", "family_spec_preview", "family_build_preview",
     "family_build_apply", "cad_geometry_inspect", "cad_to_revit_preview", "cad_to_revit_apply",
   ];
-  if (legacy40.length !== 40) throw new Error("legacy tool baseline is invalid");
-  const additive6 = ["dscons_knowledge_search", "coordination_solid_scan", "coordination_issue_report_preview", "coordination_issue_report_apply", "coordination_section_preview", "coordination_section_apply"];
-  for (const name of [...legacy40, ...additive6]) {
+  if (legacy43.length !== 48) throw new Error("legacy tool baseline is invalid");
+  const additive22 = ["dscons_knowledge_search", "family_acceptance_matrix", "revit_computer_use_assess", "source_to_revit_proposal", "mepf_evidence_readiness", "cad_annotation_assess", "manufacturer_catalog_inspect", "family_compatibility_assess", "mepf_engineering_review", "source_conflict_assess", "coordination_solid_scan", "coordination_issue_report_preview", "coordination_issue_report_apply", "coordination_section_preview", "coordination_section_apply", "model_transfer_extract", "model_transfer_destination_catalog", "model_transfer_plan", "model_transfer_preview", "model_transfer_apply", "model_transfer_reopen_verify", "model_transfer_report"];
+  for (const name of [...legacy43, ...additive22]) {
     if (!names.has(name)) throw new Error(`tools/list is missing ${name}`);
   }
   const discontinuedTagPrefix = "family" + "_tag_";
@@ -80,6 +83,9 @@ try {
   // bridge. The local implementation must still return a typed response.
   const called = await request(3, "tools/call", { name: "dscons_knowledge_search", arguments: { approved_knowledge_directory: "\\\\server\\blocked", query: "test" } });
   if (!called.result?.isError || !called.result?.content?.length) throw new Error(`offline tools/call did not return a typed local error: ${JSON.stringify(called)}`);
+  const acceptance = await request(4, "tools/call", { name: "family_acceptance_matrix", arguments: {} });
+  if (acceptance.result?.isError || acceptance.result?.structuredContent?.evidence_validation?.phase_complete !== false)
+    throw new Error(`family_acceptance_matrix must return an incomplete typed matrix without evidence: ${JSON.stringify(acceptance)}`);
   console.log(`PASS MCP protocol: initialize, notification, tools/list (${names.size} tools), tools/call`);
 } finally {
   child.kill();

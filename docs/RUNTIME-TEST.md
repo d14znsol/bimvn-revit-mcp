@@ -140,6 +140,245 @@ Lưu ý: manifest canonical đã được chuẩn hóa theo thứ tự field mà
 
 The harness also verifies that a deliberately invalid session secret is rejected. It performs no model mutation.
 
+## Computer Use evaluation matrix
+
+Computer Use không thay Revit API/MCP. Chỉ chạy trên Family/test Project copy
+đã được người dùng cho phép và theo vòng `document_info` + view/selection
+anchor → screenshot nguyên độ phân giải → một hành động whitelist → screenshot
+→ Revit read-back độc lập. Không click security dialog, không Save/Sync và
+không dùng trên project sản xuất.
+
+Ghi mỗi run theo schema của `revit_computer_use_assess`, bao gồm Revit version,
+DPI, resolution, monitor/pane mode, fingerprint trước/sau, dialog/security,
+cancel và verification. Ma trận tối thiểu phủ 2023/2025, DPI 100/125/150%,
+1920×1080, single/multi-monitor, docked/floating, dialog che khuất, security
+boundary và cancel. Workflow chỉ đủ điều kiện product review sau 20 run an toàn
+liên tiếp và matrix complete; còn lại giữ `operator_assisted_only`.
+
+## Family native Identity Data, Schedule và Tag (copied Family/Project only)
+
+Mục tiêu là kiểm chứng field chuẩn Revit theo Type, không phải chỉ đọc JSON
+evidence từ RFA. Dùng một Family copy có ít nhất hai Type, với các giá trị khác
+nhau cho `manufacturer`, `model`, `description`, `url`, `type_comments`,
+`classification_number` và `classification_title`.
+
+1. Trong Family copy, chạy `family_inspect` và đối chiếu từng Type/field với
+   Blueprint đã được xác nhận; mở lại Family và lặp lại read-back. Một field
+   native thiếu, read-only hay sai Type là FAIL, không thay bằng Shared/Family
+   Parameter cùng tên.
+2. Chỉ trong Project copy được phép test, load Family và đặt tối thiểu hai Type
+   tại vùng trống. Lập Schedule đúng category, sử dụng các field Identity Data
+   mà Revit thực sự liệt kê; thay đổi Type để kiểm giá trị dòng Schedule đổi
+   theo Type. Không đoán tên/cột field và không Save/Sync.
+3. Nếu category có Tag hợp lệ, dùng Tag đã được author qua controlled Family
+   Editor UI và kiểm nội dung Tag đổi theo chính field native/Type. Không coi
+   TextElement hard-code là Tag động; nếu Label API còn thiếu thì ghi kết quả là
+   `UI fallback required`, không tự khẳng định PASS.
+4. Ghi Revit version, template/category, tên Type, field hiển thị thực, ID
+   element/Schedule/Tag, screenshot/record read-back và trạng thái rollback hoặc
+   cleanup trên **Project copy**. Lặp fixture PASS ở Revit 2025 sau Revit 2023.
+
+Pass ở đây chỉ chứng minh exposure trong fixture đã kiểm. Nó không xác nhận
+catalogue của hãng, mapping của mọi category/template, tiêu chuẩn schedule dự án
+hay LOD300/350.
+
+## Family Routing Preference probe (copied Project only)
+
+This probe is the acceptance gate for one newly built **Pipe Fitting** or
+**Duct Fitting** type. It is not the normal load/place workflow and never
+persists a loaded RFA or a changed Routing Preference.
+
+1. Open a dedicated local Project copy, call `document_info` and
+   `get_active_view` in the same turn, then obtain existing Pipe/Duct Type,
+   system type and Level IDs from the current Project.
+2. Select an empty 2 m x 2 m area and call
+   `family_routing_probe_preview` with the exact active project path/view,
+   `copied_project_confirmed: true`, an RFA that is not already loaded, the
+   intended Family Type and matching `curve_kind`.
+3. PASS only if the response says `validation_level =
+   project_transactiongroup_rollback`, `routing_preference.verified = true`
+   and `network.verified = true`; confirm its selected symbol is the requested
+   Family Type and `rollback_state_read_back.verified = true`. The test must
+   not leave any new Family/rule/curve/fitting in the copied Project.
+4. Record the Revit version, source RFA SHA-256, selected MEP type/system,
+   profile/size, Part Type and full read-back. Run 2023 first and repeat on
+   2025. A failed transaction, an unexpected symbol, incomplete connector
+   network or a same-name loaded Family is a failure, not a warning to ignore.
+
+The probe covers only routing selection and the physically connected temporary
+network for elbow, tee/wye/lateral tee, cross/lateral cross, transition and
+union. `Breaks Into`/`Valve Breaks Into` placement, system calculation,
+pressure-loss result, type change, rotate/mirror and LOD350 coordination each
+remain separate runtime gates.
+
+## Family Break Into / Valve Breaks Into controlled-UI acceptance (copied Project only)
+
+This is deliberately not an MCP API placement test. Revit's native inline
+placement is performed by an approved UI operator; MCP provides a bounded
+preflight and a read-only topology check so a decorative two-port RFA cannot be
+reported as a connected inline component.
+
+1. In a dedicated local Project copy, call `document_info` and
+   `get_active_view` in the same turn. Keep the returned view active. Record
+   the Project path, RFA SHA-256, intended Family Type and whether the test is
+   Pipe or Duct.
+2. Call `family_break_into_ui_preflight` with that context,
+   `copied_project_confirmed: true`, the exact RFA/Type and `curve_kind`. PASS
+   requires a fresh `preflight_id`, `read_only = true`, an accepted
+   `breaks_into` or `valve_breaks_into` Part Type, and two aligned opposing
+   connectors with matching profile/size.
+3. Before the record expires, use only Revit's native Break Into workflow to
+   place that exact Type on one straight matching segment. Do not edit the RFA,
+   change its Type, change curve/system type, Save or Sync.
+4. Obtain the created FamilyInstance ID and the IDs of the two resulting
+   Pipe/Duct segments. Call `family_break_into_ui_verify` with the
+   `preflight_id`, `accessory_instance_id` and exactly two `segment_ids`.
+   PASS requires `post_controlled_ui_read_back`, matching Family/Type/Part Type,
+   one-to-one physical connector references to both segments, profile/size
+   compatibility and one shared system type.
+5. Record Revit version, Family/RFA hash, profile/size, system type, all IDs
+   and full response. Repeat a passed 2023 fixture in Revit 2025. A failed
+   preflight or verification is a failed fixture; do not bypass it by manually
+   connecting extra components.
+
+The API cannot observe which UI command produced the result. The procedure
+therefore proves resulting connector topology only, not native-command identity,
+pressure loss/system calculation, route healing after removal, type change,
+rotate/mirror, hosting or LOD350 coordination.
+
+## Family advanced Duct/Pipe connector acceptance (copied Project only)
+
+This is a separate acceptance gate for connector values and parameter
+associations. It must not be inferred from a successful RFA build, a connector
+count, or the fitting Routing Preference probe.
+
+1. In a dedicated local Project copy, re-anchor with `document_info` and
+   `get_active_view`. Record the exact Revit version, Project copy path, RFA
+   SHA-256, Family/Type, system type, Level, profile and nominal size.
+2. Open each newly built Family in the Family Editor and call `family_inspect`.
+   Revit 2023 Duct `flow_parameter` is currently API fail-closed: a controlled
+   Family Editor UI operator must make the association, then reopen/inspect it;
+   a direct API build must not be reported as PASS. For a Pipe connector with
+   `flow_configuration=preset`, PASS requires
+   the `flow` association and declared L/s. Exercise each approved min, nominal
+   and max Type value and record the individual connector read-back.
+3. For a Duct/Pipe connector with `flow_configuration=system`, PASS requires
+   the expected `flow_factor_parameter` association and a value in 0–1 for
+   every approved Type. A Pipe `allow_slope_adjustments` case must have system
+   classification `Global` and read back the declared slope flag. It is a
+   failure if the compiler silently accepts a non-Global or non-Pipe case.
+4. In the copied Project, load/place the exact RFA only through the approved
+   test workflow, create matching 1 m stubs and read connector topology with
+   `mep_connector_network`. Where the fixture has matching Routing Preference,
+   run the routing probe separately. No Save or Sync is permitted.
+5. Record the complete Family and Project read-back, including any Revit error
+   or warning. Repeat a passed Revit 2023 fixture on Revit 2025; do not extend
+   its result to other versions or types.
+
+This procedure verifies the Family-side association and bounded Project
+topology only. Routing Preference selection, system-flow calculation,
+pressure-loss results, slope propagation, network propagation and engineering
+calculation remain separate gates until each has direct copied-Project evidence.
+
+## Family hosted / two-level controlled-UI acceptance (copied Project only)
+
+This is a native Revit placement test. `family_hosting_ui_preflight` and
+`family_hosting_ui_verify` never place, rehost or cut by API; they bind the
+manual action to one RFA/Type/Project/view/host record and read the result back.
+
+1. In a dedicated local Project copy, call `document_info` and `get_active_view`
+   in the same turn. Keep that view active and identify exactly one RFA/Type.
+   For wall, ceiling, floor or roof, record exactly one physical host element;
+   for two-level placement record two ordered Level IDs.
+2. Call `family_hosting_ui_preflight` with `copied_project_confirmed: true`,
+   approved RFA path, Type, mode and target. It must return `read_only = true`,
+   a new `preflight_id` and `OneLevelBasedHosted` or `WorkPlaneBased`
+   (face-based physical host), or `TwoLevelsBased` (two levels). If void cutting is in scope, set
+   `require_void_cut: true`; it must additionally report a cut-eligible target,
+   `Cut with Voids When Loaded`, and at least one native void form.
+3. Before expiry, use Revit's native UI to place exactly that Type on the
+   selected host or between the selected levels. Do not edit the RFA, change
+   Type/host/level, Save or Sync. For the void case, create the intended cut in
+   the same controlled placement.
+4. Call `family_hosting_ui_verify` with the one-use `preflight_id` and resulting
+   `instance_id`. PASS requires exact Family/Type/placement type, the exact
+   host element and category (plus a `HostFace` on that same host for a
+   `WorkPlaneBased` Family), or the exact `FAMILY_BASE_LEVEL_PARAM` and
+   `FAMILY_TOP_LEVEL_PARAM`. A void-cut test additionally requires the host in
+   `InstanceVoidCutUtils.GetElementsBeingCut`.
+5. Record Revit version, RFA SHA-256, Family/Type, Project/view/host or Level
+   IDs, whether void cut was required, and the full read-back. Run a passed
+   Revit 2023 fixture again in Revit 2025 without claiming it covers other
+   years.
+
+The result verifies current host/level and optional cut relation only. It does
+not prove native-command identity, rehost history, type change, rotate/mirror,
+cut persistence after editing, or LOD350/BEP coordination.
+
+## Nested versus monolithic Family-library benchmark (copied Project only)
+
+`family_library_benchmark_preview` is a generic measurement harness, not a
+Family optimiser. It is available only for two **different**, declared-equivalent
+unhosted `OneLevelBased` RFAs. It fails closed when their Family Category or
+`FamilyPlacementType` differs, a Family is already loaded, the exact Type is
+absent, its declared flex parameter is not one writable non-formula Type Length
+parameter, a min/nominal/max transition does not move `GenericForm` bounds, or
+the two case-value sets differ. Matching these minimum checks does not prove
+equal geometry, connector behavior, source data, LOD, or manufacturer scope.
+
+1. Prepare two staged/no-overwrite RFAs in the approved demo directory: one
+   monolithic and one nested implementation of the same declared device scope.
+   Keep their internal Family names different. Do not compare a parent-only
+   fixture to an unrelated monolithic Family.
+2. In a dedicated local Project copy, call `document_info`, `get_active_view`
+   and `get_selection` in the same turn. Record exact Project path, view ID,
+   Level and an origin far from model content. The benchmark does not Save or
+   Sync, but temporary load/place still requires that copied Project scope.
+3. Call `family_library_benchmark_preview` with the exact two RFA/type entries,
+   matching `min`, `nominal`, `max` values for each declared Type Length
+   parameter, `equivalent_function_confirmed: true`,
+   `isolated_origin_confirmed: true`, bounded `instance_count` (1–100) and
+   spacing (100–1,000,000 mm).
+4. PASS requires two no-save Family-document flex sequences with parameter and
+   geometry read-back, then temporary `LoadFamily`, exact-Type placement of the
+   requested count and one `Document.Regenerate` in a copied-Project
+   `TransactionGroup` that is always rolled back. Record RFA byte/hash and all
+   timings, plus the comparability boundary, for this exact Revit version.
+5. Read `document_info` again after the call. It must remain `modified=false`.
+   Repeat only an accepted Revit 2023 pair in Revit 2025; do not claim any result
+   for a different pair, year, instance count or host behavior.
+
+The harness reports observed timing and file-size values only. It must not be
+used to claim that nested Families are universally smaller/faster, or to replace
+Dynamic Tag, Schedule, routing, hosting, material-visual or LOD acceptance.
+
+## Source-to-Revit certification order
+
+Chỉ chạy sau offline regression và build loader tương ứng:
+
+1. Revit 2023: CSV/TSV catalogue hãng numeric → `manufacturer_catalog_inspect`
+   → `mepf_evidence_readiness(mapping=family_blueprint)` → FamilySpec có
+   `catalogue_provenance` → rollback Family preview. Kiểm checksum/revision,
+   từng row min/nominal/max qua `size_lookup`, lookup-table inventory và sau
+   Apply thì staging/no-overwrite RFA + reopen. Fixture này có thể dùng Generic
+   Model để chứng minh dữ liệu; nó **không** chứng nhận Pipe Fitting, connector
+   hoặc Routing Preference.
+2. Revit 2023: PDF catalog nhiều Type → `family_spec_preview` → rollback Family
+   preview → staging/no-overwrite Apply → reopen/hash/flex.
+3. Revit 2023: DXF Profile/Symbolic/Model/Detail Blueprint với cùng chuỗi
+   Preview/Apply/reopen; geometry không map được phải còn trong findings.
+4. Revit 2023 copied Project: CAD centerline route rollback Preview. Persistent
+   Apply chỉ dùng fixture test đã xác nhận; bắt buộc connector/network
+   post-commit read-back, không fitting/slope/reroute ngầm và không Save/Sync.
+5. Revit 2023: multi-view image Blueprint; connector phải rỗng, citation đủ
+   mọi ảnh, flex min/nominal/max rồi reopen/hash.
+6. Chỉ sau khi từng fixture 2023 PASS mới lặp nguyên input và assertion trên
+   Revit 2025. Compile success không phải runtime PASS.
+
+Computer Use dùng đúng harness contract của `revit_computer_use_assess`. Một
+workflow chưa có 20 run liên tiếp và đủ ma trận Revit/DPI/monitor/pane/dialog/
+cancel phải giữ `operator_assisted_only`; không tạo evidence giả để đủ matrix.
+
 ## V2 BIM production matrix (copied model only)
 
 ```powershell

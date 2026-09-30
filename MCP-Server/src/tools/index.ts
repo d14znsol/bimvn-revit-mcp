@@ -5,6 +5,7 @@ import { registerCombineTools } from "./combine-tools.js";
 import { registerFamilyTools } from "./family-tools.js";
 import { registerFamilyPlatformTools } from "./family-platform-tools.js";
 import { registerMepTools } from "./mep-tools.js";
+import { registerModelTransferTools } from "./model-transfer-tools.js";
 import { registerReadTools } from "./read-tools.js";
 
 /**
@@ -12,7 +13,7 @@ import { registerReadTools } from "./read-tools.js";
  * implementation remains in MCP/Commands and is discovered at runtime.
  */
 export function registerRevitTools(): Tool[] {
-  return [...registerReadTools(), ...registerMepTools(), ...registerBimTools(), ...registerFamilyTools(), ...registerFamilyPlatformTools(), ...registerCombineTools()];
+  return [...registerReadTools(), ...registerMepTools(), ...registerBimTools(), ...registerModelTransferTools(), ...registerFamilyTools(), ...registerFamilyPlatformTools(), ...registerCombineTools()];
 }
 
 export const builtInTools: Tool[] = registerRevitTools();
@@ -42,9 +43,9 @@ export function toolsFromCapabilities(value: unknown): Tool[] {
       annotations: { readOnlyHint: !Boolean(capability.isWrite), destructiveHint: Boolean(capability.isDestructive) },
     });
   }
-  // dscons_knowledge_search is implemented in this Node server, not in Revit.
-  // Preserve it when an otherwise current bridge advertises its Revit catalog.
-  for (const local of builtInTools.filter((tool) => tool.name === "dscons_knowledge_search")) {
+  // These are implemented in the Node server, not in Revit. Preserve them
+  // when an otherwise current bridge advertises only its Revit catalog.
+  for (const local of builtInTools.filter((tool) => tool.name === "dscons_knowledge_search" || tool.name === "family_acceptance_matrix" || tool.name === "revit_computer_use_assess" || tool.name === "source_to_revit_proposal" || tool.name === "mepf_evidence_readiness" || tool.name === "cad_annotation_assess" || tool.name === "manufacturer_catalog_inspect" || tool.name === "family_compatibility_assess" || tool.name === "mepf_engineering_review" || tool.name === "source_conflict_assess" || tool.name.startsWith("model_transfer_"))) {
     if (!result.some((tool) => tool.name === local.name)) result.push(local);
   }
   return result.length > 0 ? result : builtInTools;

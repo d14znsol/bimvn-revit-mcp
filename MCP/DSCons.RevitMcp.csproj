@@ -28,12 +28,23 @@
     <Compile Include="Core\CoreRuntimeManager.cs" />
     <Compile Include="Core\McpRibbon.cs" />
     <Compile Include="Core\McpRibbonImages.cs" />
+    <Compile Include="Core\EmbeddedChat\EmbeddedChatConfig.cs" />
+    <Compile Include="Core\EmbeddedChat\EmbeddedChatInstructions.cs" />
+    <Compile Include="Core\EmbeddedChat\EmbeddedApprovalServer.cs" />
+    <Compile Include="Core\EmbeddedChat\EmbeddedChatProvider.cs" />
+    <Compile Include="Core\EmbeddedChat\ChatPersistence.cs" />
+    <Compile Include="Core\EmbeddedChat\CodexAppServerClient.cs" />
+    <Compile Include="Core\EmbeddedChat\NdjsonCliChatProvider.cs" />
+    <Compile Include="Core\EmbeddedChat\ClaudeCliChatProvider.cs" />
+    <Compile Include="Core\EmbeddedChat\AntigravityCliChatProvider.cs" />
+    <Compile Include="Core\EmbeddedChat\EmbeddedChatPane.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\contracts\DSCons.RevitMcp.Contracts.csproj" />
     <Reference Include="RevitAPI"><HintPath>$(RevitApiPath)</HintPath><Private>false</Private></Reference>
     <Reference Include="RevitAPIUI"><HintPath>$(RevitApiUiPath)</HintPath><Private>false</Private></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(RevitRoot)\NewtonSoft.Json.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
   <Target Name="ValidateRevitBuildInputs" BeforeTargets="CoreCompile">
     <Error Condition="'$(RevitVersion)' == ''" Text="RevitVersion is required. Pass -p:RevitVersion=2019..2027." />

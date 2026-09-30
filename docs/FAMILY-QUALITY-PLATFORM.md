@@ -1,4 +1,9 @@
-# DSCons Family Quality Platform — LOD 300
+# DSCons Family Quality Platform — Family Blueprint v3
+
+Thiết kế hiện hành và ma trận bao phủ nằm tại
+[FAMILY-BLUEPRINT-V3.md](FAMILY-BLUEPRINT-V3.md). Phần bên dưới là contract
+legacy còn giữ để tương thích axial/pump/panel trong thời gian chuyển sang lõi
+Blueprint; không phải kiến trúc mở rộng chính.
 
 `LOD_300` here means dependable envelope, interface locations, parameters and
 schedule data for the stated coordination/quantity use. It is not a rendering
@@ -6,9 +11,9 @@ or fabrication-LOD claim, and it is independent of Revit Coarse/Medium/Fine.
 
 ## Implemented contract
 
-- The existing 46 MCP tool names remain unchanged. `family_build_preview` and
-  `family_build_apply` now use an allow-listed `FamilySpec → Adapter → Quality
-  Validator` pipeline.
+- The existing 46 MCP tool names remain unchanged. New Family kinds use
+  `SourceEvidence → Family Blueprint v3 → FamilySpec v3 → bounded compiler`.
+  Legacy adapters remain callable without adding one tool per equipment name.
 - `FamilySpec` records evidence checksum, category, origin policy,
   `LOD_300`, `dscons_mep_300_v1`, confirmed/missing field state and defined
   connector roles. Missing or uncertain required fields block preview/apply.

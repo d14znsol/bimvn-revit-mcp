@@ -2,6 +2,9 @@
 MCP-Server/node_modules/
 MCP-Server/build/
 MCP-Server/assets/ocr/*.traineddata.gz
+MCP-Server/.build-*/
+MCP-Server/build-check-*/
+MCP-Server/build-fixture-*/
 
 # .NET build output
 **/bin/
@@ -47,3 +50,4 @@ tests/runtime_verify_*.py
 **/__pycache__/
 *.tmp
 *.bak
+tmp/

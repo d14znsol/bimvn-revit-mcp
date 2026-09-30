@@ -252,14 +252,117 @@ internal static class FamilyConnectorReadBack
         var width = Get("Width") as double?;
         var height = Get("Height") as double?;
         var role = connector.get_Parameter(BuiltInParameter.RBS_CONNECTOR_DESCRIPTION)?.AsString();
+        string? Associated(BuiltInParameter builtIn)
+        {
+            var parameter = connector.get_Parameter(builtIn); var document = connector.Document;
+            return parameter == null || !document.IsFamilyDocument ? null : document.FamilyManager.GetAssociatedFamilyParameter(parameter)?.Definition.Name;
+        }
+        int? Integer(BuiltInParameter builtIn) => connector.get_Parameter(builtIn)?.AsInteger();
+        double? Double(BuiltInParameter builtIn) => connector.get_Parameter(builtIn)?.AsDouble();
+        var domain = Get("Domain")?.ToString();
+        var flowDirection = Integer(domain == "Hvac" ? BuiltInParameter.RBS_DUCT_FLOW_DIRECTION_PARAM : BuiltInParameter.RBS_PIPE_FLOW_DIRECTION_PARAM);
+        var flowConfiguration = Integer(domain == "Hvac" ? BuiltInParameter.RBS_DUCT_FLOW_CONFIGURATION_PARAM : BuiltInParameter.RBS_PIPE_FLOW_CONFIGURATION_PARAM);
+        var lossMethod = Integer(domain == "Hvac" ? BuiltInParameter.RBS_DUCT_FITTING_LOSS_METHOD_PARAM : BuiltInParameter.RBS_PIPE_FITTING_LOSS_METHOD_PARAM);
+        JObject? mechanicalData = null;
+        if (domain is "Hvac" or "Piping")
+        {
+            var isDuct = domain == "Hvac";
+            mechanicalData = new JObject
+            {
+                ["flow_lps"] = FlowFromInternal(Double(isDuct ? BuiltInParameter.RBS_DUCT_FLOW_PARAM : BuiltInParameter.RBS_PIPE_FLOW_PARAM)),
+                ["flow_factor"] = Double(BuiltInParameter.RBS_FLOW_FACTOR_PARAM),
+                ["allow_slope_adjustments"] = isDuct ? null : Integer(BuiltInParameter.RBS_ADJUSTABLE_CONNECTOR) is int adjustable ? adjustable != 0 : null,
+                ["parameter_bindings"] = new JObject
+                {
+                    ["flow"] = Associated(isDuct ? BuiltInParameter.RBS_DUCT_FLOW_PARAM : BuiltInParameter.RBS_PIPE_FLOW_PARAM),
+                    ["flow_factor"] = Associated(BuiltInParameter.RBS_FLOW_FACTOR_PARAM)
+                },
+                ["project_calculation_probe"] = "not_certified_until_routing_preference_system_calculation_and_network_read_back_pass"
+            };
+        }
+        JObject? electricalData = null;
+        if (domain == "Electrical")
+        {
+            var loadClassificationParameter = connector.get_Parameter(BuiltInParameter.RBS_ELEC_LOAD_CLASSIFICATION);
+            var loadClassificationId = loadClassificationParameter?.AsElementId() ?? ElementId.InvalidElementId;
+            electricalData = new JObject
+            {
+                ["voltage_v"] = ElectricalFromInternal(Double(BuiltInParameter.RBS_ELEC_VOLTAGE), "voltage"),
+                ["apparent_load_va"] = ElectricalFromInternal(Double(BuiltInParameter.RBS_ELEC_APPARENT_LOAD), "apparent_power"),
+                ["number_of_poles"] = Integer(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES),
+                ["power_factor"] = Double(BuiltInParameter.RBS_ELEC_POWER_FACTOR),
+                ["balanced_load"] = Integer(BuiltInParameter.RBS_ELEC_BALANCED_LOAD) is int balanced ? balanced != 0 : null,
+                ["power_factor_state"] = Integer(BuiltInParameter.RBS_ELEC_POWER_FACTOR_STATE) switch { 0 => "leading", 1 => "lagging", _ => null },
+                ["load_classification"] = loadClassificationId != ElementId.InvalidElementId ? connector.Document.GetElement(loadClassificationId)?.Name : null,
+                ["parameter_bindings"] = new JObject
+                {
+                    ["voltage"] = Associated(BuiltInParameter.RBS_ELEC_VOLTAGE),
+                    ["apparent_load"] = Associated(BuiltInParameter.RBS_ELEC_APPARENT_LOAD),
+                    ["number_of_poles"] = Associated(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES),
+                    ["power_factor"] = Associated(BuiltInParameter.RBS_ELEC_POWER_FACTOR),
+                    ["balanced_load"] = Associated(BuiltInParameter.RBS_ELEC_BALANCED_LOAD),
+                    ["load_classification"] = Associated(BuiltInParameter.RBS_ELEC_LOAD_CLASSIFICATION)
+                },
+                ["project_circuit_probe"] = "not_certified_until_system_creation_panel_assignment_and_schedule_read_back_pass"
+            };
+        }
         return new JObject
         {
-            ["id"] = connector.Id.Val(), ["role"] = role ?? connector.Name, ["domain"] = Get("Domain")?.ToString(), ["shape"] = Get("Shape")?.ToString(),
+            ["id"] = connector.Id.Val(), ["role"] = role ?? connector.Name, ["domain"] = domain, ["shape"] = Get("Shape")?.ToString(),
             ["origin_mm"] = Point(Get("Origin")), ["normal"] = Point(Get("Direction"), false), ["system_classification"] = Get("SystemClassification")?.ToString(),
             ["is_primary"] = Get("IsPrimary") as bool? ?? false, ["linked_connector_id"] = linked?.Id.Val(),
+            ["size_parameter_bindings"] = new JObject { ["diameter"] = Associated(BuiltInParameter.CONNECTOR_DIAMETER), ["width"] = Associated(BuiltInParameter.CONNECTOR_WIDTH), ["height"] = Associated(BuiltInParameter.CONNECTOR_HEIGHT) },
             ["size_mm"] = new JObject { ["radius"] = radius.HasValue && radius.Value > 0 ? Math.Round(radius.Value * 304.8, 3) : null, ["width"] = width.HasValue && width.Value > 0 ? Math.Round(width.Value * 304.8, 3) : null, ["height"] = height.HasValue && height.Value > 0 ? Math.Round(height.Value * 304.8, 3) : null },
+            ["flow_direction"] = flowDirection switch { 0 => "bidirectional", 1 => "in", 2 => "out", _ => null },
+            ["flow_configuration"] = flowConfiguration switch { 0 => "calculated", 1 => "preset", 2 => "system", 3 => "demand", _ => null },
+            ["loss_method"] = lossMethod switch { 0 => "not_defined", 1 => "table", 4 => "specific_loss", 6 => "coefficient", _ => null },
+            ["loss_coefficient"] = Double(BuiltInParameter.RBS_LOSS_COEFFICIENT), ["pressure_drop_pa"] = PressureFromInternal(Double(BuiltInParameter.RBS_PRESSURE_DROP)),
+            ["joint_type"] = Integer(BuiltInParameter.CONNECTOR_JOINT_TYPE) switch { 0 => "undefined", 1 => "flanged", 2 => "welded", 3 => "threaded", 4 => "grooved", 5 => "glued", 6 => "soldered", _ => null },
+            ["gender"] = Integer(BuiltInParameter.CONNECTOR_GENDER_TYPE) switch { 0 => "undefined", 1 => "male", 2 => "female", _ => null },
+            ["engagement_length_mm"] = Double(BuiltInParameter.CONNECTOR_ENGAGEMENT_LENGTH) is double engagement ? Math.Round(engagement * 304.8, 3) : null,
+            ["mechanical_data"] = mechanicalData,
+            ["electrical_data"] = electricalData,
             ["parameter_association"] = connector.get_Parameter(BuiltInParameter.CONNECTOR_RADIUS) != null ? "family_diameter_or_connector_radius" : null,
             ["runtime_probe"] = "not_certified_until_1m_stub_and_network_record_pass"
         };
     }
+
+    private static double? PressureFromInternal(double? value)
+    {
+        if (!value.HasValue) return null;
+#if REVIT2019 || REVIT2020 || REVIT2021
+#pragma warning disable CS0618
+        return Math.Round(UnitUtils.ConvertFromInternalUnits(value.Value, DisplayUnitType.DUT_PASCALS), 6);
+#pragma warning restore CS0618
+#else
+        return Math.Round(UnitUtils.ConvertFromInternalUnits(value.Value, UnitTypeId.Pascals), 6);
+#endif
+    }
+
+    private static double? ElectricalFromInternal(double? value, string dataType)
+    {
+        if (!value.HasValue) return null;
+#if REVIT2019 || REVIT2020 || REVIT2021
+#pragma warning disable CS0618
+        var unit = dataType == "voltage" ? DisplayUnitType.DUT_VOLTS : DisplayUnitType.DUT_VOLT_AMPERES;
+        return Math.Round(UnitUtils.ConvertFromInternalUnits(value.Value, unit), 6);
+#pragma warning restore CS0618
+#else
+        var unit = dataType == "voltage" ? UnitTypeId.Volts : UnitTypeId.VoltAmperes;
+        return Math.Round(UnitUtils.ConvertFromInternalUnits(value.Value, unit), 6);
+#endif
+    }
+
+    private static double? FlowFromInternal(double? value)
+    {
+        if (!value.HasValue) return null;
+#if REVIT2019 || REVIT2020 || REVIT2021
+#pragma warning disable CS0618
+        return Math.Round(UnitUtils.ConvertFromInternalUnits(value.Value, DisplayUnitType.DUT_LITERS_PER_SECOND), 6);
+#pragma warning restore CS0618
+#else
+        return Math.Round(UnitUtils.ConvertFromInternalUnits(value.Value, UnitTypeId.LitersPerSecond), 6);
+#endif
+    }
+
 }

@@ -33,7 +33,7 @@ Nếu tự thao tác source, yêu cầu là Windows, Git, Node.js/npm, .NET SDK 
 
 ```powershell
 npm ci --prefix .\MCP-Server
-npm run build --prefix .\MCP-Server
+node .\MCP-Server\scripts\build-server.mjs
 node .\tests\mcp_protocol_smoke.mjs
 .\scripts\test-contracts.ps1
 ```
@@ -63,6 +63,13 @@ AI client
 `MCP-Server/` là MCP Server duy nhất. `MCP/` là Revit add-in bridge.
 `MCP.CoreRuntime/` không phải server và không được đăng ký vào AI client.
 
+Revit 2023 và 2025 có cùng bản thử [Chat AI trong Revit](docs/CODEX-REVIT-CHAT-POC.md):
+một panel dock bên phải chọn Codex, Claude hoặc Antigravity. Codex dùng
+`app-server`; Claude yêu cầu CLI >= 2.1.259; Antigravity chỉ bật khi chứng minh
+isolation qua inventory tool. Mọi provider chỉ nạp DSCons MCP và yêu cầu học
+viên chat `đồng ý`/`thực hiện` cho từng write sau Preview. Đây chưa phải claim
+production hoặc runtime certification cho các năm khác.
+
 ## Tài liệu
 
 - [PROJECT.md](PROJECT.md) — ranh giới và source of truth.
@@ -73,6 +80,10 @@ AI client
 - [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — chẩn đoán lỗi thường gặp.
 - [MCP-Server/README.md](MCP-Server/README.md) — Node MCP server.
 - [MCP/README.md](MCP/README.md) — Revit add-in bridge.
+- [CODEX-REVIT-CHAT-POC.md](docs/CODEX-REVIT-CHAT-POC.md) — panel Chat AI thử nghiệm trên Revit 2023/2025.
+- [FAMILY-BLUEPRINT-V3.md](docs/FAMILY-BLUEPRINT-V3.md) — nền tảng khai báo dựng mới Family MEP, ma trận khả năng và cửa nghiệm thu LOD.
+- [SOURCE-TO-PROJECT-MEPF.md](docs/SOURCE-TO-PROJECT-MEPF.md) — PDF bản vẽ, DWG/DXF và ảnh công trình thành ProjectReconstructionPlan ưu tiên MEPF.
+- [MODEL-TRANSFER-MEPF.md](docs/MODEL-TRANSFER-MEPF.md) — chuyển có kiểm chứng native MEPF Revit 2025 → 2023; không phải RVT down-save.
 
 ## License
 

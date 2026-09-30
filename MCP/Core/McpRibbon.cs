@@ -2,6 +2,9 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System.Windows.Media;
+#if REVIT2023 || REVIT2025
+using DSCons.RevitMcp.Core.EmbeddedChat;
+#endif
 
 namespace DSCons.RevitMcp.Core;
 
@@ -13,6 +16,16 @@ internal static class McpRibbon
     {
         var panel = application.CreateRibbonPanel("DSCons MCP");
         var assembly = typeof(McpRibbon).Assembly.Location;
+#if REVIT2023 || REVIT2025
+        var chat = panel.AddItem(new PushButtonData("DSConsMcpChat", "Chat AI\nThử nghiệm", assembly, typeof(McpChatCommand).FullName!)) as PushButton;
+        if (chat != null)
+        {
+            chat.ToolTip = "Mở Chat AI dùng tài khoản Codex của học viên.";
+            chat.LongDescription = "Bản thử Revit 2023/2025. Codex chỉ dùng DSCons MCP; mọi thao tác ghi model phải được học viên bấm Thực hiện trong khung chat.";
+            chat.Image = McpRibbonImages.Chat();
+            chat.LargeImage = McpRibbonImages.Chat();
+        }
+#endif
         _toggle = panel.AddItem(new PushButtonData("DSConsMcpToggle", "Bật/Tắt\nMCP", assembly, typeof(McpToggleCommand).FullName!)) as PushButton;
         UpdateTogglePresentation(CoreRuntimeManager.Current?.IsRunning ?? false);
         var reload = panel.AddItem(new PushButtonData("DSConsMcpReload", "Cập nhật\nCode", assembly, typeof(McpReloadCommand).FullName!)) as PushButton;
@@ -35,6 +48,28 @@ internal static class McpRibbon
         _toggle.LargeImage = McpRibbonImages.Power(running);
     }
 }
+
+#if REVIT2023 || REVIT2025
+[Transaction(TransactionMode.Manual)]
+internal sealed class McpChatCommand : IExternalCommand
+{
+    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+    {
+        try
+        {
+            var host = EmbeddedChatPaneHost.Current ?? throw new InvalidOperationException("Khung Chat AI chưa được đăng ký.");
+            host.Show(commandData.Application);
+            return Result.Succeeded;
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+            TaskDialog.Show("DSCons Chat AI", "Không thể mở khung Chat AI: " + ex.Message);
+            return Result.Failed;
+        }
+    }
+}
+#endif
 
 [Transaction(TransactionMode.Manual)]
 internal sealed class McpToggleCommand : IExternalCommand

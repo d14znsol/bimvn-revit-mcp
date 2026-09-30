@@ -550,7 +550,7 @@ internal static class FamilyPlacement
         catch (CommandResultException) { group.RollBack(); throw; }
         catch (Exception ex) { group.RollBack(); throw new CommandResultException(ErrorCodes.TransactionFailed, "Family load/place rolled back: " + ex.Message); }
     }
-    private static JObject LoadAndPlace(Document project, PlaceSpec spec)
+    internal static JObject LoadAndPlace(Document project, PlaceSpec spec)
     {
         var loaded = project.LoadFamily(spec.FamilyPath, new RejectOverwriteFamilyLoadOptions(), out var family); if (!loaded || family == null) throw new CommandResultException(ErrorCodes.FileConflict, "Family could not be loaded safely. A Family with the same name may already exist.");
         var symbol = new FilteredElementCollector(project).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().FirstOrDefault(item => item.Family.Id == family.Id && string.Equals(item.Name, spec.TypeName, StringComparison.Ordinal));
@@ -569,11 +569,213 @@ internal static class FamilyData
 {
     public static JObject Inspect(Document doc)
     {
-        var planes = new FilteredElementCollector(doc).OfClass(typeof(ReferencePlane)).Cast<ReferencePlane>().Select(item => new JObject { ["id"] = item.Id.Val(), ["name"] = item.Name }).ToList();
-        var forms = new FilteredElementCollector(doc).OfClass(typeof(GenericForm)).ToElements().Select(item => new JObject { ["id"] = item.Id.Val(), ["class"] = item.GetType().Name }).ToList();
+        var planes = new FilteredElementCollector(doc).OfClass(typeof(ReferencePlane)).Cast<ReferencePlane>().Select(item => FamilyBlueprintCompiler.ReferencePlaneSnapshot(doc, item)).ToList();
+        JObject SketchSignature(Sketch? sketch)
+        {
+            if (sketch == null) return new JObject { ["shape"] = "missing", ["loop_count"] = 0, ["verified"] = false };
+            var loops = sketch.Profile.Cast<CurveArray>().Select(loop =>
+            {
+                var curves = loop.Cast<Curve>().ToList(); var lines = curves.Count(item => item is Line); var arcs = curves.Count(item => item is Arc); var other = curves.Count - lines - arcs;
+                var shape = lines == 4 && arcs == 0 && other == 0 ? "rectangle" : lines == 0 && arcs == 2 && other == 0 ? "circle" : lines == 2 && arcs == 2 && other == 0 ? "oval" : "custom_closed";
+                return new JObject { ["shape"] = shape, ["curve_count"] = curves.Count, ["line_count"] = lines, ["arc_count"] = arcs, ["other_curve_count"] = other };
+            }).ToList();
+            var overall = loops.Count == 2 && loops.All(item => item.Value<string>("shape") == "circle") ? "ring" : loops.Count == 1 ? loops[0].Value<string>("shape") ?? "custom_closed" : "multi_loop";
+            return new JObject { ["shape"] = overall, ["loop_count"] = loops.Count, ["loops"] = new JArray(loops), ["verified"] = loops.Count > 0 };
+        }
+        JObject FormProfileSignature(GenericForm form) => form switch
+        {
+            Extrusion extrusion => new JObject { ["primary"] = SketchSignature(extrusion.Sketch) },
+            Revolution revolution => new JObject { ["primary"] = SketchSignature(revolution.Sketch) },
+            Sweep sweep => new JObject { ["primary"] = SketchSignature(sweep.ProfileSketch) },
+            Blend blend => new JObject { ["primary"] = SketchSignature(blend.BottomSketch), ["secondary"] = SketchSignature(blend.TopSketch) },
+            SweptBlend sweptBlend => new JObject { ["primary"] = SketchSignature(sweptBlend.BottomSketch), ["secondary"] = SketchSignature(sweptBlend.TopSketch) },
+            _ => new JObject { ["primary"] = new JObject { ["shape"] = "unsupported", ["verified"] = false } }
+        };
+        var forms = new FilteredElementCollector(doc).OfClass(typeof(GenericForm)).Cast<GenericForm>().Select(item =>
+        {
+            var visibility = item.GetVisibility(); var bounds = item.get_BoundingBox(null); var material = item.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM); var visible = item.get_Parameter(BuiltInParameter.IS_VISIBLE_PARAM);
+            var visibilityParameter = visible == null || !doc.IsFamilyDocument ? null : doc.FamilyManager.GetAssociatedFamilyParameter(visible);
+            var materialParameter = material == null || !doc.IsFamilyDocument ? null : doc.FamilyManager.GetAssociatedFamilyParameter(material);
+            var subcategory = item.Subcategory?.Name;
+            var presentationSubcategory = item.Subcategory == null ? null : FamilyBlueprintCompiler.PresentationSubcategorySnapshot(doc, item.Subcategory);
+            var coordinationPurpose = subcategory switch
+            {
+                "DSCons Coordination Maintenance" => "maintenance_clearance", "DSCons Coordination Access" => "access_clearance",
+                "DSCons Coordination Service" => "service_clearance", "DSCons Coordination Installation" => "installation_clearance",
+                "DSCons Coordination Removal Path" => "removal_path", "DSCons Coordination Operation Swing" => "operation_swing",
+                "DSCons Coordination Connection Interface" => "connection_interface", "DSCons Coordination Support Interface" => "support_interface", _ => null
+            };
+            return new JObject
+            {
+                ["id"] = item.Id.Val(), ["class"] = item.GetType().Name, ["is_solid"] = item.IsSolid,
+                ["role_or_subcategory"] = subcategory, ["presentation_subcategory"] = presentationSubcategory, ["coordination_purpose"] = coordinationPurpose,
+                ["coordination_semantic_intent"] = coordinationPurpose == null ? null : "non_physical_coordination_geometry",
+                ["quantity_exclusion_certified"] = coordinationPurpose == null ? null : false,
+                ["visibility"] = new JObject { ["coarse"] = visibility.IsShownInCoarse, ["medium"] = visibility.IsShownInMedium, ["fine"] = visibility.IsShownInFine, ["front_back"] = visibility.IsShownInFrontBack, ["left_right"] = visibility.IsShownInLeftRight, ["plan_rcp"] = visibility.IsShownInPlanRCPCut, ["only_when_cut"] = visibility.IsShownOnlyWhenCut },
+                ["visibility_parameter"] = visibilityParameter == null ? null : new JObject { ["name"] = visibilityParameter.Definition.Name, ["is_instance"] = visibilityParameter.IsInstance, ["verified"] = true },
+                ["material_id"] = material?.AsElementId().Val(), ["material_associated"] = materialParameter != null,
+                ["material_associated_parameter"] = materialParameter == null ? null : new JObject { ["name"] = materialParameter.Definition.Name, ["is_instance"] = materialParameter.IsInstance, ["verified"] = true },
+                ["profile_signature"] = FormProfileSignature(item),
+                ["path"] = item is Sweep sweep ? FamilyBlueprintCompiler.SweepPathSnapshot(sweep) : null,
+                ["bounds_mm"] = bounds == null ? null : new JObject { ["min"] = new JObject { ["x"] = Math.Round(bounds.Min.X * 304.8, 3), ["y"] = Math.Round(bounds.Min.Y * 304.8, 3), ["z"] = Math.Round(bounds.Min.Z * 304.8, 3) }, ["max"] = new JObject { ["x"] = Math.Round(bounds.Max.X * 304.8, 3), ["y"] = Math.Round(bounds.Max.Y * 304.8, 3), ["z"] = Math.Round(bounds.Max.Z * 304.8, 3) } }
+            };
+        }).ToList();
         var connectors = new FilteredElementCollector(doc).OfClass(typeof(ConnectorElement)).Cast<ConnectorElement>().Select(FamilyConnectorReadBack.Describe).ToList();
-        var parameters = doc.IsFamilyDocument ? doc.FamilyManager.Parameters.Cast<FamilyParameter>().Select(item => new JObject { ["name"] = item.Definition.Name, ["is_instance"] = item.IsInstance, ["formula"] = item.Formula }).ToList() : new List<JObject>();
+        var parameters = doc.IsFamilyDocument ? doc.FamilyManager.GetParameters().Select((item, orderIndex) =>
+        {
+            var external = item.Definition as ExternalDefinition;
+            var hideWhenNoValue = external?.GetType().GetProperty("HideWhenNoValue")?.GetValue(external) as bool?;
+            return new JObject { ["name"] = item.Definition.Name, ["order_index"] = orderIndex, ["is_instance"] = item.IsInstance, ["formula"] = item.Formula, ["storage_type"] = item.StorageType.ToString(), ["group"] = ParameterGroupKey(item.Definition), ["is_shared"] = item.IsShared, ["shared_guid"] = item.IsShared ? item.GUID.ToString("D") : null, ["description"] = external?.Description, ["visible"] = external?.Visible, ["user_modifiable"] = external?.UserModifiable, ["hide_when_no_value"] = hideWhenNoValue, ["associated_element_parameter_count"] = item.AssociatedParameters?.Size ?? 0 };
+        }).ToList() : new List<JObject>();
         var types = doc.IsFamilyDocument ? doc.FamilyManager.Types.Cast<FamilyType>().Select(item => item.Name).ToList() : new List<string>();
-        return new JObject { ["title"] = doc.Title, ["path"] = doc.PathName, ["is_family_document"] = doc.IsFamilyDocument, ["category"] = doc.IsFamilyDocument ? doc.OwnerFamily?.FamilyCategory?.Name : null, ["unit_input"] = "mm", ["internal_unit"] = "feet", ["reference_planes"] = new JArray(planes), ["parameters"] = new JArray(parameters), ["types"] = new JArray(types), ["forms"] = new JArray(forms), ["connectors"] = new JArray(connectors) };
+        var identityData = doc.IsFamilyDocument ? FamilyBlueprintCompiler.BuiltInIdentityDataSnapshot(doc) : null;
+        var placement = doc.IsFamilyDocument ? doc.OwnerFamily?.FamilyPlacementType.ToString() : null;
+        var lookupTables = new List<string>();
+        if (doc.IsFamilyDocument && doc.OwnerFamily != null)
+        {
+            var sizeTableManager = FamilySizeTableManager.GetFamilySizeTableManager(doc, doc.OwnerFamily.Id);
+            if (sizeTableManager != null) lookupTables = sizeTableManager.GetAllSizeTableNames().OrderBy(name => name, StringComparer.Ordinal).ToList();
+        }
+        var primitives = forms.GroupBy(item => item.Value<string>("class") ?? "Unknown").ToDictionary(group => group.Key, group => group.Count());
+        var materials = doc.IsFamilyDocument ? new FilteredElementCollector(doc).OfClass(typeof(Material)).Cast<Material>().Select(item => FamilyMaterialReadBack.Describe(doc, item)).ToList() : new List<JObject>();
+        var lightSource = doc.IsFamilyDocument ? FamilyLightingReadBack.Describe(doc) : null;
+        var presentationSubcategories = doc.IsFamilyDocument && doc.OwnerFamily?.FamilyCategory != null
+            ? doc.OwnerFamily.FamilyCategory.SubCategories.Cast<Category>().Select(item => FamilyBlueprintCompiler.PresentationSubcategorySnapshot(doc, item)).ToList()
+            : new List<JObject>();
+        JObject DescribeCurve(CurveElement item, FamilyElementVisibility visibility, string kind)
+        {
+            var visible = item.get_Parameter(BuiltInParameter.IS_VISIBLE_PARAM);
+            var associated = visible == null || !doc.IsFamilyDocument ? null : doc.FamilyManager.GetAssociatedFamilyParameter(visible);
+            var curve = item.GeometryCurve;
+            JObject PointMm(XYZ point) => new() { ["x_mm"] = Math.Round(point.X * 304.8, 3), ["y_mm"] = Math.Round(point.Y * 304.8, 3), ["z_mm"] = Math.Round(point.Z * 304.8, 3) };
+            var curveGeometry = new JObject
+            {
+                ["kind"] = curve is Line ? "line" : curve.GetType().Name,
+                ["start_mm"] = PointMm(curve.GetEndPoint(0)),
+                ["end_mm"] = PointMm(curve.GetEndPoint(1)),
+                ["length_mm"] = Math.Round(curve.Length * 304.8, 3)
+            };
+            var styleCategory = (item.LineStyle as GraphicsStyle)?.GraphicsStyleCategory;
+            return new JObject
+            {
+                ["id"] = item.Id.Val(), ["kind"] = kind, ["class"] = item.GetType().Name,
+                ["line_style"] = item.LineStyle?.Name, ["presentation_subcategory"] = styleCategory == null ? null : FamilyBlueprintCompiler.PresentationSubcategorySnapshot(doc, styleCategory), ["sketch_plane_id"] = item.SketchPlane?.Id.Val(), ["sketch_plane_name"] = item.SketchPlane?.Name,
+                ["visibility"] = new JObject { ["coarse"] = visibility.IsShownInCoarse, ["medium"] = visibility.IsShownInMedium, ["fine"] = visibility.IsShownInFine, ["front_back"] = visibility.IsShownInFrontBack, ["left_right"] = visibility.IsShownInLeftRight, ["plan_rcp"] = visibility.IsShownInPlanRCPCut, ["only_when_cut"] = visibility.IsShownOnlyWhenCut },
+                ["visibility_parameter"] = associated == null ? null : new JObject { ["name"] = associated.Definition.Name, ["is_instance"] = associated.IsInstance, ["verified"] = true },
+                ["curve_geometry"] = curveGeometry
+            };
+        }
+        // ModelCurve and SymbolicCurve are managed API types, but Revit 2023
+        // rejects them as direct OfClass filters because they are not native
+        // object-model classes. Collect the native CurveElement base once and
+        // then use managed type filtering for the read-back classification.
+        var familyCurves = doc.IsFamilyDocument
+            ? new FilteredElementCollector(doc).OfClass(typeof(CurveElement)).Cast<CurveElement>().ToList()
+            : new List<CurveElement>();
+        var modelCurves = familyCurves.OfType<ModelCurve>().Select(item => DescribeCurve(item, item.GetVisibility(), "model")).ToList();
+        var symbolicCurves = familyCurves.OfType<SymbolicCurve>().Select(item => DescribeCurve(item, item.GetVisibility(), "symbolic")).ToList();
+        JObject DescribeDetailCurve(DetailCurve item)
+        {
+            var curve = item.GeometryCurve;
+            JObject PointMm(XYZ point) => new() { ["x_mm"] = Math.Round(point.X * 304.8, 3), ["y_mm"] = Math.Round(point.Y * 304.8, 3), ["z_mm"] = Math.Round(point.Z * 304.8, 3) };
+            var styleCategory = (item.LineStyle as GraphicsStyle)?.GraphicsStyleCategory;
+            return new JObject
+            {
+                ["id"] = item.Id.Val(), ["class"] = item.GetType().Name, ["line_style"] = item.LineStyle?.Name, ["presentation_subcategory"] = styleCategory == null ? null : FamilyBlueprintCompiler.PresentationSubcategorySnapshot(doc, styleCategory),
+                ["curve_geometry"] = new JObject { ["kind"] = curve is Line ? "line" : curve.GetType().Name, ["start_mm"] = PointMm(curve.GetEndPoint(0)), ["end_mm"] = PointMm(curve.GetEndPoint(1)), ["length_mm"] = Math.Round(curve.Length * 304.8, 3) }
+            };
+        }
+        var detailCurves = familyCurves.OfType<DetailCurve>().Select(DescribeDetailCurve).ToList();
+        var filledRegionCount = doc.IsFamilyDocument ? new FilteredElementCollector(doc).OfClass(typeof(FilledRegion)).GetElementCount() : 0;
+        var controlCount = doc.IsFamilyDocument ? new FilteredElementCollector(doc).OfClass(typeof(Control)).GetElementCount() : 0;
+        var importInstanceCount = doc.IsFamilyDocument ? new FilteredElementCollector(doc).OfClass(typeof(ImportInstance)).GetElementCount() : 0;
+        var documentElementCount = doc.IsFamilyDocument ? new FilteredElementCollector(doc).WhereElementIsNotElementType().GetElementCount() : 0;
+        JObject DescribeDimension(Dimension item)
+        {
+            // Autodesk templates can contain native dimensions that cannot carry
+            // a FamilyLabel. Reading FamilyLabel on one of those dimensions may
+            // throw even though it is unrelated to a compiler-created constraint.
+            // Preserve that diagnostic per dimension instead of aborting the
+            // complete inspection. Reopen validators still require expected
+            // compiler labels by name, so a missing authoring label cannot pass.
+            FamilyParameter? label = null; string? labelError = null;
+            try { label = item.FamilyLabel; }
+            catch (Exception exception) { labelError = exception.Message; }
+            return new JObject
+            {
+                ["id"] = item.Id.Val(), ["shape"] = item.DimensionShape.ToString(), ["segment_count"] = item.NumberOfSegments,
+                ["segments_equal"] = item.NumberOfSegments > 1 ? item.AreSegmentsEqual : null,
+                ["family_label"] = label?.Definition.Name, ["family_label_is_instance"] = label?.IsInstance,
+                ["family_label_read_back"] = labelError == null ? "available" : "unavailable", ["family_label_error"] = labelError,
+                ["reference_count"] = item.References?.Size ?? 0
+            };
+        }
+        var dimensions = doc.IsFamilyDocument ? new FilteredElementCollector(doc).OfClass(typeof(Dimension)).Cast<Dimension>().Select(DescribeDimension).ToList() : new List<JObject>();
+        JObject PointMm(XYZ point) => new() { ["x_mm"] = Math.Round(point.X * 304.8, 3), ["y_mm"] = Math.Round(point.Y * 304.8, 3), ["z_mm"] = Math.Round(point.Z * 304.8, 3) };
+        var nestedInstances = doc.IsFamilyDocument ? new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Select(item =>
+        {
+            var hostFace = item.HostFace; string locationKind; JToken? location;
+            if (item.Location is LocationPoint point) { locationKind = "point"; location = PointMm(point.Point); }
+            else if (item.Location is LocationCurve curve && curve.Curve is Line line) { locationKind = "curve"; location = new JObject { ["start_mm"] = PointMm(line.GetEndPoint(0)), ["end_mm"] = PointMm(line.GetEndPoint(1)) }; }
+            else { locationKind = item.Location?.GetType().Name ?? "none"; location = null; }
+            var parameterInterfaces = item.Parameters.Cast<Parameter>().Select(parameter =>
+            {
+                var external = parameter.Definition as ExternalDefinition;
+                var associated = doc.FamilyManager.CanElementParameterBeAssociated(parameter) ? doc.FamilyManager.GetAssociatedFamilyParameter(parameter) : null;
+                return new JObject
+                {
+                    ["name"] = parameter.Definition.Name, ["is_shared"] = external != null, ["shared_guid"] = external?.GUID.ToString("D"),
+                    ["associated_family_parameter"] = associated == null ? null : new JObject { ["name"] = associated.Definition.Name, ["is_instance"] = associated.IsInstance, ["is_shared"] = associated.IsShared, ["shared_guid"] = associated.IsShared ? associated.GUID.ToString("D") : null }
+                };
+            }).Where(parameter => parameter.Value<bool?>("is_shared") == true || parameter["associated_family_parameter"] != null).ToList();
+            // Revit exposes a Shared child parameter in a nested instance by
+            // the matching GUID; its proxy Definition is not consistently an
+            // ExternalDefinition. Record that native lookup separately so a
+            // reopen verifier never pretends it was an ordinary association.
+            foreach (var parentParameter in doc.FamilyManager.Parameters.Cast<FamilyParameter>().Where(parameter => parameter.IsInstance && parameter.IsShared))
+            {
+                var nestedShared = item.get_Parameter(parentParameter.GUID);
+                if (nestedShared == null || parameterInterfaces.Any(candidate => candidate.Value<bool?>("shared_guid_identity_lookup") == true && string.Equals(candidate.Value<string>("shared_guid"), parentParameter.GUID.ToString("D"), StringComparison.OrdinalIgnoreCase))) continue;
+                parameterInterfaces.Add(new JObject
+                {
+                    ["name"] = nestedShared.Definition.Name, ["is_shared"] = true, ["shared_guid"] = parentParameter.GUID.ToString("D"),
+                    ["associated_family_parameter"] = null, ["shared_guid_identity_lookup"] = true
+                });
+            }
+            return new JObject { ["id"] = item.Id.Val(), ["family"] = item.Symbol.FamilyName, ["type"] = item.Symbol.Name, ["family_placement_type"] = item.Symbol.Family.FamilyPlacementType.ToString(), ["host_element_id"] = item.Host?.Id.Val(), ["host_face_element_id"] = hostFace?.ElementId.Val(), ["location_kind"] = locationKind, ["location"] = location, ["parameters"] = new JArray(parameterInterfaces) };
+        }).ToList() : new List<JObject>();
+        return new JObject
+        {
+            ["title"] = doc.Title, ["family_name"] = doc.IsFamilyDocument ? doc.OwnerFamily?.Name : null, ["path"] = doc.PathName, ["is_family_document"] = doc.IsFamilyDocument,
+            ["category"] = doc.IsFamilyDocument ? doc.OwnerFamily?.FamilyCategory?.Name : null,
+            // Family category display names are localized; this is the stable
+            // BuiltInCategory id required for exact reopen verification.
+            ["category_id"] = doc.IsFamilyDocument ? doc.OwnerFamily?.FamilyCategory?.Id.Val() : null,
+            ["hosting"] = new JObject { ["family_placement_type"] = placement, ["inferred_behavior"] = placement switch { "OneLevelBased" => "level_based", "OneLevelBasedHosted" => "hosted_category_specific", "TwoLevelsBased" => "two_level_based", "ViewBased" => "view_based_annotation_or_detail", "WorkPlaneBased" => "work_plane_based", "CurveBased" => "line_based", "CurveBasedDetail" => "detail_item_line_based", "Adaptive" => "adaptive", _ => "unknown_or_project_document" }, ["verified_from_revit"] = doc.IsFamilyDocument },
+            ["family_behavior"] = doc.IsFamilyDocument ? FamilyBlueprintCompiler.FamilyBehaviorSnapshot(doc) : null,
+            ["unit_input"] = "mm", ["internal_unit"] = "feet", ["reference_planes"] = new JArray(planes),
+            ["parameters"] = new JArray(parameters), ["types"] = new JArray(types), ["identity_data"] = identityData, ["lookup_tables"] = new JArray(lookupTables), ["forms"] = new JArray(forms), ["connectors"] = new JArray(connectors), ["materials"] = new JArray(materials), ["presentation_subcategories"] = new JArray(presentationSubcategories), ["light_source"] = lightSource, ["model_curves"] = new JArray(modelCurves), ["symbolic_curves"] = new JArray(symbolicCurves), ["detail_curves"] = new JArray(detailCurves), ["dimensions"] = new JArray(dimensions), ["nested_instances"] = new JArray(nestedInstances),
+            ["capability_evidence"] = new JObject { ["observed_primitives"] = JObject.FromObject(primitives), ["document_element_count"] = documentElementCount, ["form_count"] = forms.Count, ["void_form_count"] = forms.Count(item => item.Value<bool?>("is_solid") == false), ["coordination_zone_count"] = forms.Count(item => (item.Value<string>("role_or_subcategory") ?? string.Empty).StartsWith("DSCons Coordination ", StringComparison.Ordinal)), ["connector_count"] = connectors.Count, ["parameter_count"] = parameters.Count, ["formula_parameter_count"] = parameters.Count(item => !string.IsNullOrWhiteSpace(item.Value<string>("formula"))), ["lookup_table_count"] = lookupTables.Count, ["family_type_count"] = types.Count, ["material_count"] = materials.Count, ["presentation_subcategory_count"] = presentationSubcategories.Count, ["light_source_count"] = lightSource == null ? 0 : 1, ["model_curve_count"] = modelCurves.Count, ["symbolic_curve_count"] = symbolicCurves.Count, ["detail_curve_count"] = detailCurves.Count, ["filled_region_count"] = filledRegionCount, ["control_count"] = controlCount, ["two_dimensional_curve_count"] = modelCurves.Concat(symbolicCurves).Concat(detailCurves).Select(item => item.Value<long>("id")).Distinct().Count(), ["dimension_count"] = dimensions.Count, ["unavailable_dimension_label_count"] = dimensions.Count(item => item.Value<string>("family_label_read_back") == "unavailable"), ["nested_instance_count"] = nestedInstances.Count, ["reference_plane_count"] = planes.Count, ["named_reference_plane_count"] = planes.Count(item => !new[] { "strong", "weak", "not_reference" }.Contains(item.Value<string>("reference_type"))), ["origin_reference_plane_count"] = planes.Count(item => item.Value<bool?>("defines_origin") == true), ["styled_reference_plane_count"] = planes.Count(item => item["subcategory"] != null), ["equal_dimension_count"] = dimensions.Count(item => item.Value<bool?>("segments_equal") == true), ["visibility_parameter_binding_count"] = forms.Concat(modelCurves).Concat(symbolicCurves).Count(item => item["visibility_parameter"] != null), ["parameter_binding_count"] = parameters.Sum(item => item.Value<int?>("associated_element_parameter_count") ?? 0), ["import_instance_count"] = importInstanceCount, ["inspection_only"] = true },
+            ["verification_boundary"] = "This read-back proves observed Family content only. Coordination-zone solids are semantic aids and do not certify quantity exclusion, Project/BEP clearance, access, support, hosting, network connectivity or full LOD350."
+        };
+    }
+
+    private static string ParameterGroupKey(Definition definition)
+    {
+#if REVIT2019 || REVIT2020 || REVIT2021
+        return definition.ParameterGroup switch
+        {
+            BuiltInParameterGroup.PG_CONSTRAINTS => "constraints", BuiltInParameterGroup.PG_GEOMETRY => "geometry", BuiltInParameterGroup.PG_MATERIALS => "materials",
+            BuiltInParameterGroup.PG_MECHANICAL => "mechanical", BuiltInParameterGroup.PG_MECHANICAL_AIRFLOW => "mechanical_airflow", BuiltInParameterGroup.PG_ELECTRICAL => "electrical",
+            BuiltInParameterGroup.PG_PLUMBING => "plumbing", BuiltInParameterGroup.PG_DATA => "data", BuiltInParameterGroup.PG_GRAPHICS => "graphics", BuiltInParameterGroup.PG_GENERAL => "general",
+            BuiltInParameterGroup.PG_IDENTITY_DATA => "identity_data", _ => definition.ParameterGroup.ToString()
+        };
+#else
+        var group = definition.GetGroupTypeId();
+        if (group == GroupTypeId.Constraints) return "constraints"; if (group == GroupTypeId.Geometry) return "geometry"; if (group == GroupTypeId.Materials) return "materials";
+        if (group == GroupTypeId.Mechanical) return "mechanical"; if (group == GroupTypeId.MechanicalAirflow) return "mechanical_airflow"; if (group == GroupTypeId.Electrical) return "electrical";
+        if (group == GroupTypeId.Plumbing) return "plumbing"; if (group == GroupTypeId.Data) return "data"; if (group == GroupTypeId.Graphics) return "graphics"; if (group == GroupTypeId.General) return "general";
+        if (group == GroupTypeId.IdentityData) return "identity_data"; return group.TypeId;
+#endif
     }
 }

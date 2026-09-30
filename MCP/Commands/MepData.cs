@@ -17,6 +17,21 @@ internal static class MepData
         if (e is FamilyInstance instance && instance.MEPModel?.ConnectorManager != null) return instance.MEPModel.ConnectorManager.Connectors.Cast<Connector>();
         return Enumerable.Empty<Connector>();
     }
+    public static IEnumerable<Connector> PhysicalConnectors(Element? element) => Connectors(element)
+        .Where(connector => connector.ConnectorType is ConnectorType.End or ConnectorType.Curve or ConnectorType.Physical);
+    public static string PartTypeKey(Family family)
+    {
+        var value = family.get_Parameter(BuiltInParameter.FAMILY_CONTENT_PART_TYPE)?.AsInteger();
+        if (!value.HasValue || !Enum.IsDefined(typeof(PartType), value.Value) || (PartType)value.Value == PartType.Undefined) return string.Empty;
+        var name = ((PartType)value.Value).ToString();
+        var chars = new List<char>();
+        for (var index = 0; index < name.Length; index++)
+        {
+            if (index > 0 && char.IsUpper(name[index]) && (char.IsLower(name[index - 1]) || char.IsDigit(name[index - 1]))) chars.Add('_');
+            chars.Add(char.ToLowerInvariant(name[index]));
+        }
+        return new string(chars.ToArray());
+    }
     public static IEnumerable<Element> ConnectedRoutingFittings(Element element)
     {
         return Connectors(element)
@@ -38,7 +53,35 @@ internal static class MepData
     {
         var doc = element.Document; var type = doc.GetElement(element.GetTypeId()); var box = element.get_BoundingBox(null); var parameters = new JObject(); var systemTypeId = SystemTypeId(element);
         foreach (Parameter parameter in element.Parameters) if (parameter.Definition != null && parameter.HasValue) parameters[parameter.Definition.Name] = parameter.StorageType == StorageType.String ? parameter.AsString() : parameter.AsValueString();
-        var detail = new JObject { ["id"] = element.Id.Val(), ["category"] = element.Category?.Name, ["class"] = element.GetType().Name, ["name"] = element.Name, ["family_or_type"] = type?.Name, ["type_id"] = element.GetTypeId() == ElementId.InvalidElementId ? null : element.GetTypeId().Val(), ["system_name"] = SystemName(element), ["system_type_id"] = systemTypeId == ElementId.InvalidElementId ? null : systemTypeId.Val(), ["level_id"] = element.LevelId.Val(), ["pinned"] = element.Pinned, ["bounding_box"] = box == null ? null : new JObject { ["min"] = Point(box.Min), ["max"] = Point(box.Max) }, ["parameters"] = parameters };
+        var detail = new JObject { ["id"] = element.Id.Val(), ["category"] = element.Category?.Name, ["class"] = element.GetType().Name, ["name"] = element.Name, ["family_or_type"] = type?.Name, ["type_id"] = element.GetTypeId() == ElementId.InvalidElementId ? null : element.GetTypeId().Val(), ["system_name"] = SystemName(element), ["system_type_id"] = systemTypeId == ElementId.InvalidElementId ? null : systemTypeId.Val(), ["level_id"] = element.LevelId.Val(), ["pinned"] = element.Pinned, ["comments"] = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString(), ["bounding_box"] = box == null ? null : new JObject { ["min"] = Point(box.Min), ["max"] = Point(box.Max) }, ["parameters"] = parameters };
+        if (element is MEPCurve mepCurve)
+        {
+            if (mepCurve.Location is LocationCurve routeLocation && routeLocation.Curve is Line routeLine)
+                detail["centerline_mm"] = new JArray(Point(routeLine.GetEndPoint(0)), Point(routeLine.GetEndPoint(1)));
+            var connector = Connectors(mepCurve).FirstOrDefault();
+            if (connector != null) try
+            {
+                if (connector.Shape == ConnectorProfileType.Round) detail["diameter_mm"] = Math.Round(connector.Radius * 2 * 304.8, 3);
+                else if (connector.Shape is ConnectorProfileType.Rectangular or ConnectorProfileType.Oval)
+                {
+                    detail["width_mm"] = Math.Round(connector.Width * 304.8, 3);
+                    detail["height_mm"] = Math.Round(connector.Height * 304.8, 3);
+                }
+            }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException) { }
+        }
+        if (element is FamilyInstance locatedInstance && locatedInstance.Location is LocationPoint locationPoint)
+        {
+            detail["location_point_mm"] = Point(locationPoint.Point);
+            detail["rotation_degrees"] = Math.Round(locationPoint.Rotation * 180.0 / Math.PI, 6);
+        }
+        if (element is FamilyInstance mepInstance && mepInstance.MEPModel != null)
+        {
+            detail["family_name"] = mepInstance.Symbol.FamilyName;
+            detail["placement_type"] = mepInstance.Symbol.Family.FamilyPlacementType.ToString();
+            detail["part_type"] = PartTypeKey(mepInstance.Symbol.Family);
+            detail["physical_connector_count"] = PhysicalConnectors(mepInstance).Count();
+        }
         if (element is ViewSheet sheet)
         {
             detail["sheet_number"] = sheet.SheetNumber;
@@ -61,7 +104,7 @@ internal static class MepData
         }
         return detail;
     }
-    private static ElementId SystemTypeId(Element element)
+    public static ElementId SystemTypeId(Element element)
     {
         if (element is MEPCurve curve && curve.MEPSystem != null) return curve.MEPSystem.GetTypeId();
         var parameterId = element.Category?.Id.IntVal() switch

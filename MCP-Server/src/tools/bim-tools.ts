@@ -15,6 +15,7 @@ const routeSchema = {
     kind: { enum: ["pipe", "duct", "conduit", "cable_tray"] },
     type_id: { type: "integer" }, system_type_id: { type: "integer" }, level_id: { type: "integer" },
     diameter_mm: { type: "number", exclusiveMinimum: 0 },
+    width_mm: { type: "number", exclusiveMinimum: 0 }, height_mm: { type: "number", exclusiveMinimum: 0 },
     demo_tag: { type: "string", minLength: 1 },
     inline_accessory: {
       type: "object",

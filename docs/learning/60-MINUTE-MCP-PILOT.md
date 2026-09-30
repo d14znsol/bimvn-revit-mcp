@@ -14,13 +14,15 @@ hay model khách hàng. Không Save/Sync, publish, print hoặc export.
 4. Một Family quạt hướng trục `.rfa` trong thư mục demo đã duyệt, sau đó load và
    đặt một instance vào Project.
 
-Học viên không tự tìm Family Template. Agent tự suy ra Mechanical Equipment từ
-`axial_fan` và tìm template Metric đúng phiên bản Revit. Cửa gió dùng Air
-Terminal; van gió dùng Duct Accessory; bơm/quạt dùng Mechanical Equipment. Xem
-[quy tắc tự chọn template](../FAMILY-TEMPLATE-AUTO-RESOLUTION.md).
-Nếu thiếu template chuyên ngành, MCP dùng Metric Generic Model đúng năm, tự đổi
-Family Category và đọc lại. Agent giải thích vị trí **Create → Family Category
-and Parameters** để học viên hiểu bước tương đương trong giao diện Revit.
+Trước Family step, kỹ sư xác nhận Blueprint, nguồn thông số và quyết định nguồn
+Family. Agent chỉ dò Autodesk `.rft` đúng năm đã cài cục bộ theo behavior,
+category và Part Type đã khai; một axial fan thường cần Mechanical Equipment.
+Agent không tự tìm, tải hoặc thay thế Family RFA của hãng, không chọn Family
+gần giống và không đoán dữ liệu catalogue thiếu. Nếu không có template/source
+phù hợp, giữ Family step ở `CẦN BẠN THỰC HIỆN`; không thay bằng Generic Model.
+Generic Model chỉ là ngoại lệ khi behavior tương đương, Blueprint cho phép và
+read-back xác nhận; fitting, 2D, Profile, Annotation và Tag chuyên biệt luôn bị
+chặn. Xem [quy tắc chọn template](../FAMILY-TEMPLATE-AUTO-RESOLUTION.md).
 
 ## Timeline
 
@@ -31,7 +33,7 @@ and Parameters** để học viên hiểu bước tương đương trong giao di
 | 15–29 | Preview rồi tạo Pipe route DN25, elbow và inline Gate Valve | Đọc lại ID/type/level/diameter/connector |
 | 29–39 | Tạo ba native Schedule và chạy `quantity_takeoff` | Hidden Comments filter cô lập đúng mã demo |
 | 39–47 | `documentation_plan` → preview/apply | Floor Plan lên Sheet A3; Schedule giữ riêng |
-| 47–58 | Tạo quạt → reopen/checksum → load/place preview/apply | Template tự dò; đặt instance trên Level 1 |
+| 47–58 | Tạo quạt → reopen/checksum → load/place preview/apply | Blueprint/source/template đã xác nhận; đặt instance trên Level 1 |
 | 58–60 | Đọc lại connector/IDs và ghi MCP log | Xác nhận không Save/Sync |
 
 ### Hội thoại bắt buộc trước khi tạo Schedule
@@ -74,13 +76,15 @@ ngoài khung A3 vì dùng tọa độ đặt cố định và không crop/scale 
 Workflow mới không coi Sheet đó là mẫu bố trí đạt chuẩn.
 
 Nếu model thiếu Title Block hoặc type MEP phù hợp, ghi `CẦN BẠN THỰC HIỆN`;
-không đoán ID và không tự thay đổi Project Template. Nếu content pack thiếu
-cả template chuyên ngành lẫn Metric Generic Model đúng năm, Agent mới báo file
-cần cài/repair; không yêu cầu học viên tự duyệt ổ đĩa.
+không đoán ID và không tự thay đổi Project Template. Nếu Autodesk content thiếu
+template đúng hoặc không có source Family tương thích, Agent nêu chính xác
+prerequisite/source cần kỹ sư cung cấp hoặc repair; không tự download hay thay
+bằng Generic Model.
 
 ## Điều kiện PASS
 
-- Host discovery đúng 46 tools và Revit capability đúng 45 commands.
+- Host discovery khớp capability manifest của artifact vừa build và Revit
+  capability đúng command inventory của phiên runtime đó.
 - Mỗi write dùng current document/view context và trả post-commit verification.
 - Ba Schedule là `ViewSchedule` thật, có đúng các cột/sort/group/total học viên
   đã xác nhận, một hidden Comments field và một exact-tag filter; quantity phản

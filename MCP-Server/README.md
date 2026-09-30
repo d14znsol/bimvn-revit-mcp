@@ -12,7 +12,7 @@ Build with:
 
 ```powershell
 npm install
-npm run build
+node .\scripts\build-server.mjs
 ```
 
 The client entry point is `MCP-Server/build/index.js`.

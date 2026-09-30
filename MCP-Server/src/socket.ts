@@ -34,12 +34,17 @@ async function readSession(): Promise<SessionInfo> {
   const raw = await fs.readFile(sessionPath(), "utf8");
   const session = JSON.parse(raw) as Partial<SessionInfo>;
   if (!session.secret) throw new Error("DSCons MCP session secret is missing. Start the DSCons MCP service in Revit.");
-  return {
+  const result = {
     port: Number(process.env.DSCONS_MCP_PORT ?? session.port ?? DEFAULT_PORT),
     secret: session.secret,
     processId: Number(session.processId ?? 0),
     startedAtUtc: String(session.startedAtUtc ?? "")
   };
+  const expectedPid = Number(process.env.DSCONS_MCP_EXPECTED_REVIT_PID ?? 0);
+  if (expectedPid > 0 && result.processId !== expectedPid) {
+    throw new Error(`Revit PID mismatch. Expected ${expectedPid}, but the active DSCons bridge belongs to PID ${result.processId || "unknown"}.`);
+  }
+  return result;
 }
 
 function readLine(socket: net.Socket, timeoutMs: number): Promise<string> {

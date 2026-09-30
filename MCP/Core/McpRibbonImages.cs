@@ -48,6 +48,25 @@ internal static class McpRibbonImages
         context.DrawEllipse(null, new Pen(Navy, 0.8), new Point(8, 8), 6.5, 6.5);
     });
 
+    public static ImageSource Chat() => Draw(context =>
+    {
+        var bubble = new StreamGeometry();
+        using (var geometry = bubble.Open())
+        {
+            geometry.BeginFigure(new Point(2, 3), true, true);
+            geometry.LineTo(new Point(14, 3), true, false);
+            geometry.LineTo(new Point(14, 11), true, false);
+            geometry.LineTo(new Point(8, 11), true, false);
+            geometry.LineTo(new Point(5, 14), true, false);
+            geometry.LineTo(new Point(5, 11), true, false);
+            geometry.LineTo(new Point(2, 11), true, false);
+        }
+        context.DrawGeometry(Navy, new Pen(Cyan, 1), bubble);
+        context.DrawEllipse(White, null, new Point(5, 7), 1, 1);
+        context.DrawEllipse(White, null, new Point(8, 7), 1, 1);
+        context.DrawEllipse(White, null, new Point(11, 7), 1, 1);
+    });
+
     private static ImageSource Draw(Action<DrawingContext> draw)
     {
         var group = new DrawingGroup();

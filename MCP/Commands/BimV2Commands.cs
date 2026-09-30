@@ -43,7 +43,14 @@ internal sealed class BimModelCatalogCommand : ReadCommand
     {
         var doc = Document(app); var limit = Math.Min(2000, Math.Max(1, args.Value<int?>("limit") ?? 500));
         var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(x => x.Elevation).Take(limit).Select(x => new JObject { ["id"] = x.Id.Val(), ["name"] = x.Name, ["elevation_mm"] = Math.Round(x.Elevation * 304.8, 2) });
-        var typeCategories = new HashSet<int> { (int)BuiltInCategory.OST_PipeCurves, (int)BuiltInCategory.OST_DuctCurves, (int)BuiltInCategory.OST_Conduit, (int)BuiltInCategory.OST_CableTray, (int)BuiltInCategory.OST_PipingSystem, (int)BuiltInCategory.OST_DuctSystem };
+        var typeCategories = new HashSet<int>
+        {
+            (int)BuiltInCategory.OST_PipeCurves, (int)BuiltInCategory.OST_DuctCurves,
+            (int)BuiltInCategory.OST_Conduit, (int)BuiltInCategory.OST_CableTray,
+            (int)BuiltInCategory.OST_PipingSystem, (int)BuiltInCategory.OST_DuctSystem,
+            (int)BuiltInCategory.OST_PipeInsulations, (int)BuiltInCategory.OST_DuctInsulations,
+            (int)BuiltInCategory.OST_DuctLinings
+        };
         var mepTypes = new FilteredElementCollector(doc).WhereElementIsElementType().Where(e => e.Category != null && typeCategories.Contains(e.Category.Id.IntVal())).Take(limit).Select(e => new JObject { ["id"] = e.Id.Val(), ["name"] = e.Name, ["category"] = e.Category?.Name, ["class"] = e.GetType().Name });
         var viewTypes = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().Take(limit).Select(x => new JObject { ["id"] = x.Id.Val(), ["name"] = x.Name, ["view_family"] = x.ViewFamily.ToString() });
         var templates = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Where(x => x.IsTemplate).Take(limit).Select(x => new JObject { ["id"] = x.Id.Val(), ["name"] = x.Name, ["view_type"] = x.ViewType.ToString() });

@@ -50,6 +50,9 @@ internal static class MepSafety
         if (operation == "mep_move_route" || operation == "mep_change_type" || operation == "mep_change_size") return MepData.Ids(args).Select(doc.GetElement).Where(x => x != null)!;
         if (operation == "mep_create_route") return RouteTargets(doc, args);
         if (operation == "model_create_batch") return (args["routes"] as JArray ?? new JArray()).OfType<JObject>().SelectMany(route => RouteTargets(doc, route));
+        if (operation == "mep_place_equipment_batch") return (args["instances"] as JArray ?? new JArray()).OfType<JObject>().SelectMany(item => new[] { item.Value<long>("symbol_id"), item.Value<long>("level_id") }).Distinct().Select(RevitIdCompatibility.Eid).Select(doc.GetElement).Where(x => x != null)!;
+        if (operation == "mep_connect_created_batch") return Enumerable.Empty<Element>();
+        if (operation == "mep_apply_created_envelopes_batch") return (args["envelopes"] as JArray ?? new JArray()).OfType<JObject>().Select(item => item.Value<long>("material_type_id")).Distinct().Select(RevitIdCompatibility.Eid).Select(doc.GetElement).Where(x => x != null)!;
         if (operation == "documentation_apply") return DocumentationTargets(doc, args);
         if (operation == "bim_changeset") return (args["operations"] as JArray ?? new JArray()).OfType<JObject>().SelectMany(item => Targets(doc, item.Value<string>("operation") ?? string.Empty, item["arguments"] as JObject ?? new JObject()));
         return Enumerable.Empty<Element>();
@@ -73,7 +76,7 @@ internal static class MepSafety
         foreach (var sheet in (args["sheets"] as JArray ?? new JArray()).OfType<JObject>()) { ids.Add(sheet.Value<long>("title_block_type_id")); foreach (var placement in (sheet["placements"] as JArray ?? new JArray()).OfType<JObject>()) ids.Add(placement.Value<long>("view_id")); }
         return ids.Distinct().Select(RevitIdCompatibility.Eid).Select(doc.GetElement).Where(x => x != null)!;
     }
-    public static bool IsOperation(string operation) => operation == "mep_create_route" || operation == "mep_connect" || operation == "mep_disconnect" || operation == "mep_move_route" || operation == "mep_change_type" || operation == "mep_change_size" || operation == "model_create_batch" || operation == "bim_changeset" || operation == "documentation_apply";
+    public static bool IsOperation(string operation) => operation == "mep_create_route" || operation == "mep_connect" || operation == "mep_disconnect" || operation == "mep_move_route" || operation == "mep_change_type" || operation == "mep_change_size" || operation == "model_create_batch" || operation == "mep_place_equipment_batch" || operation == "mep_connect_created_batch" || operation == "mep_apply_created_envelopes_batch" || operation == "bim_changeset" || operation == "documentation_apply";
 }
 
 /// <summary>

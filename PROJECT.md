@@ -39,7 +39,7 @@ MCP Server thứ hai và không được đăng ký trong Codex, Claude hoặc A
 | --- | --- |
 | `MCP-Server/` | MCP protocol stdio, transport client và tool registry/schema |
 | `MCP-Server/src/tools/` | Module catalog tool theo nhóm read/MEP/Family/Combine; không chứa Revit API |
-| `MCP/` | Add-in entry point, manifest, bridge và Ribbon status/reload |
+| `MCP/` | Add-in entry point, manifest, bridge, Ribbon và panel Chat AI POC Revit 2023/2025 |
 | `MCP/Commands/` | Các lệnh Revit API do bridge gọi |
 | `MCP.CoreRuntime/` | Runtime reloadable nội bộ của add-in |
 | `contracts/` | DTO, error code, preview và interface giữa loader/runtime |

@@ -43,12 +43,17 @@ Bạn cũng cần có quyền cài phần mềm trên máy và biết chính xá
 > Windows 11, Revit 2023, Codex, có quyền cài phần mềm.
 
 Nếu tham gia pilot, bạn cần thêm một Project copy local và một thư mục demo
-được phép ghi. Bạn không cần tự tìm Family Template: MCP tự chọn template đúng
-năm/category (quạt và bơm dùng Mechanical Equipment, cửa gió dùng Air Terminal,
-van gió dùng Duct Accessory). Nếu thiếu template chuyên ngành, MCP dùng Metric
-Generic Model đúng năm, đổi Family Category trước khi tạo hình và đọc lại kết
-quả. Agent sẽ chỉ cho bạn vị trí **Create → Family Category and Parameters** để
-hiểu thao tác, nhưng bạn không phải tự tìm `.rft` hoặc sửa tay.
+được phép ghi. Agent chỉ dò Autodesk `.rft` đã cài cục bộ, đúng năm, khi
+Blueprint đã nêu rõ behavior/category/Part Type (ví dụ quạt/bơm thường là
+Mechanical Equipment, cửa gió Air Terminal, van gió Duct Accessory). Agent
+không tự tìm, tải hoặc thay thế Family RFA của hãng hay chọn Family gần giống.
+Với Family nguồn, catalogue hoặc transfer, kỹ sư phải xác nhận có RFA tương
+thích, catalogue hoặc template chuẩn nào; dữ liệu thiếu/mơ hồ được hỏi-gộp rồi
+chặn đúng phạm vi phụ thuộc. Generic Model chỉ có thể là fallback khi behavior
+tương đương, Blueprint cho phép và Revit read-back xác nhận category; fitting,
+2D, Profile, Annotation và Tag chuyên biệt không được fallback. Agent sẽ chỉ
+cho bạn vị trí **Create → Family Category and Parameters** để hiểu thao tác,
+nhưng không yêu cầu bạn tự tìm `.rft` hoặc sửa tay.
 
 Hãy ghi lại hai thông tin sau. Ví dụ câu trả lời:
 
@@ -121,6 +126,16 @@ Trong panel **DSCons MCP**, nếu nút đang ghi **Bật MCP** thì bấm để 
 sẽ đổi thành **Tắt MCP** khi bridge Revit hoạt động. Nút này không chạy hoặc kill
 Node của AI client và không sửa model. Xem
 [hướng dẫn Ribbon](../MCP-RIBBON-CONTROLS.md).
+
+ Riêng Revit 2023 có nút **Chat AI · Thử nghiệm**. Panel này dùng tài khoản Codex
+ của học viên và bắt buộc chat `đồng ý`/`thực hiện`/`tiếp tục`/`làm đi`/`ok`/`xác nhận`
+ cho từng thao tác ghi sau Preview; `hủy`/`thôi` dừng yêu cầu. Thanh trạng thái hiển thị
+ AI đang đọc Project hay gọi tool nào, không dùng đồng hồ đếm. `Enter` gửi và
+ `Shift+Enter` xuống dòng. Lịch sử tách theo từng file Revit; học viên chỉ lưu Bộ nhớ
+ khi chủ động nói `hãy nhớ ...` hoặc mở nút **Bộ nhớ** để quản lý.
+ Panel tự thích ứng khi kéo hẹp/rộng; mở **Hoạt động công cụ** để xem AI đang đọc
+ Project, Preview hay Apply mà không cần hiểu tên tool kỹ thuật.
+Không dùng panel để Save/Sync. Xem [hướng dẫn POC](../CODEX-REVIT-CHAT-POC.md).
 
 Agent chỉ thực hiện các đọc kiểm tra tương ứng với client đã cài:
 

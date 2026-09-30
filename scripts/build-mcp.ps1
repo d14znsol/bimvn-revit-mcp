@@ -52,14 +52,23 @@ $contractsProject = Join-Path $root 'contracts\DSCons.RevitMcp.Contracts.csproj'
 $loaderProject = Join-Path $root 'MCP\DSCons.RevitMcp.csproj'
 $runtimeProject = Join-Path $root 'MCP.CoreRuntime\DSCons.RevitMcp.CoreRuntime.csproj'
 $serverProject = Join-Path $root 'MCP-Server'
+$capabilityManifestSource = Join-Path $root 'MCP-Server\build\embedded-capabilities.json'
 Invoke-Dotnet @('build', $contractsProject, '-c', $Configuration, '--nologo')
-if (!(Get-Command npm -ErrorAction SilentlyContinue)) { throw 'npm is required to build the Node/TypeScript MCP server.' }
+$nodeExecutable = (Get-Command node.exe -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if (!$nodeExecutable) { $nodeExecutable = (Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1).Source }
+if (!$nodeExecutable) { throw 'Node.js is required to build the Node/TypeScript MCP server.' }
+if (!(Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw 'npm is required to restore Node/TypeScript MCP dependencies.' }
 Push-Location $serverProject
 try {
-    if (!(Test-Path 'node_modules')) { & npm install --no-audit --no-fund; if ($LASTEXITCODE -ne 0) { throw 'npm install failed.' } }
-    & npm run build; if ($LASTEXITCODE -ne 0) { throw 'npm run build failed.' }
+    if (!(Test-Path 'node_modules')) { & npm.cmd install --no-audit --no-fund; if ($LASTEXITCODE -ne 0) { throw 'npm install failed.' } }
+    # Invoke the pinned build entry point directly. The former `npm.cmd run`
+    # wrapper intermittently crashed when hosted by PowerShell even though the
+    # same Node process and TypeScript emit were healthy. This retains npm only
+    # for dependency restore and makes build failure attribution deterministic.
+    & $nodeExecutable '.\scripts\build-server.mjs'; if ($LASTEXITCODE -ne 0) { throw 'Node MCP Server build failed.' }
 }
 finally { Pop-Location }
+if (!(Test-Path -LiteralPath $capabilityManifestSource)) { throw 'MCP Server build did not generate embedded-capabilities.json.' }
 
 $contractsDll = Join-Path $root ("contracts\bin\{0}\netstandard2.0\DSCons.RevitMcp.Contracts.dll" -f $Configuration)
 $manifestSource = Join-Path $root 'MCP\DSCons.RevitMcp.addin'
@@ -93,6 +102,7 @@ foreach ($version in $versions) {
     Copy-Item (Join-Path $loaderSource 'DSCons.RevitMcp.dll') $output -Force
     Copy-Item $contractsDll $output -Force
     Copy-Item (Join-Path $coreSource 'DSCons.RevitMcp.CoreRuntime.dll') $runtimeOutput -Force
+    if ($version -in @('2023','2025')) { Copy-Item $capabilityManifestSource (Join-Path $output 'embedded-capabilities.json') -Force }
 
     Copy-Item $manifestSource (Join-Path $output 'DSCons.RevitMcp.addin') -Force
 }

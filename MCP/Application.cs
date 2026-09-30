@@ -1,5 +1,8 @@
 using Autodesk.Revit.UI;
 using DSCons.RevitMcp.Core;
+#if REVIT2023 || REVIT2025
+using DSCons.RevitMcp.Core.EmbeddedChat;
+#endif
 
 namespace DSCons.RevitMcp;
 
@@ -10,6 +13,9 @@ namespace DSCons.RevitMcp;
 public sealed class App : IExternalApplication
 {
     private CoreRuntimeManager? _runtime;
+#if REVIT2023 || REVIT2025
+    private EmbeddedChatPaneHost? _chatPane;
+#endif
 
     public Result OnStartup(UIControlledApplication application)
     {
@@ -17,6 +23,9 @@ public sealed class App : IExternalApplication
         {
             _runtime = new CoreRuntimeManager();
             _runtime.Initialize(application);
+#if REVIT2023 || REVIT2025
+            _chatPane = EmbeddedChatPaneHost.Register(application);
+#endif
             McpRibbon.Create(application);
             return Result.Succeeded;
         }
@@ -31,6 +40,10 @@ public sealed class App : IExternalApplication
 
     public Result OnShutdown(UIControlledApplication application)
     {
+#if REVIT2023 || REVIT2025
+        _chatPane?.Dispose();
+        _chatPane = null;
+#endif
         _runtime?.Dispose();
         _runtime = null;
         return Result.Succeeded;
