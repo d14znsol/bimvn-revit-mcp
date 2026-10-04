@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>DSCons Revit MCP</Name>
+    <Assembly>DSConsRevitMcp\DSCons.RevitMcp.dll</Assembly>
+    <AddInId>8A9F43ED-5784-4AE9-9575-3CA3AF1CE023</AddInId>
+    <FullClassName>DSCons.RevitMcp.App</FullClassName>
+    <VendorId>DSCONS</VendorId>
+    <VendorDescription>DSCons independent Revit MCP loader</VendorDescription>
+  </AddIn>
+</RevitAddIns>

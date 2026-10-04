@@ -1,0 +1,30 @@
+{
+  "name": "@dscons/revit-mcp-server",
+  "version": "0.1.0",
+  "description": "DSCons MCP stdio server for Autodesk Revit",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "dscons-revit-mcp": "build/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "node scripts/build-server.mjs",
+    "start": "node build/index.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@napi-rs/canvas": "0.1.67",
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/vie": "1.0.0",
+    "pdfjs-dist": "4.10.38",
+    "tesseract.js": "5.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,3 @@
+[mcp_servers.dscons-revit-mcp]
+command = "node"
+args = ["<DSCONS_MCP_ROOT>/MCP-Server/build/index.js"]

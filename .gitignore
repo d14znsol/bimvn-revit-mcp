@@ -1,0 +1,53 @@
+# Node MCP server dependencies and generated JavaScript
+MCP-Server/node_modules/
+MCP-Server/build/
+MCP-Server/assets/ocr/*.traineddata.gz
+MCP-Server/.build-*/
+MCP-Server/build-check-*/
+MCP-Server/build-fixture-*/
+
+# .NET build output
+**/bin/
+**/obj/
+
+# Local build/deployment artifacts
+artifacts/
+
+# Local runtime state and audit
+.DSCons/
+*.log
+
+# Private agent/client state
+.agents/
+.agent/
+.mcp.json
+
+# Private knowledge, copied models and generated runtime evidence
+inputs/
+knowledge/
+course-content/
+runtime/
+audit/
+session.json
+*.rvt
+*.rfa
+
+# Internal course/history documents and copied-model runtime harnesses
+docs/learning/livestream.md
+docs/learning/track-a.md
+docs/learning/track-b.md
+docs/personal-practice-scope-v1.md
+docs/personal-release-and-rollback-v1.md
+docs/personal-workflow-catalog-v1.md
+tests/personal-regression-plan-v1.md
+tests/personal_regression_validator.py
+tests/runtime_verify_*.py
+
+# Editor, test and language caches
+.vscode/
+.idea/
+.pytest_cache/
+**/__pycache__/
+*.tmp
+*.bak
+tmp/
