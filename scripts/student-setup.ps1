@@ -92,6 +92,15 @@ if ($Mode -eq 'Check') {
     $dependenciesOk = Test-ProductionNodeDependencies
     $rows.Add((ExistsText 'Node dependencies: san sang.' 'Node dependencies: THIEU; Install co the tu cai sau khi duoc xac nhan.' $dependenciesOk))
     $apiRoot = "C:\Program Files\Autodesk\Revit $RevitVersion"
+    if (!(Test-Path -LiteralPath $apiRoot)) {
+        $regInstall = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Autodesk\Revit\$RevitVersion\REVIT-*:*" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty InstallationLocation -First 1)
+        if (!$regInstall) {
+            $regInstall = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq "Revit $RevitVersion" -or $_.DisplayName -eq "Autodesk Revit $RevitVersion" } | Select-Object -ExpandProperty InstallLocation -First 1)
+        }
+        if ($regInstall -and (Test-Path -LiteralPath $regInstall)) {
+            $apiRoot = $regInstall.TrimEnd('\')
+        }
+    }
     $apiPaths = @((Join-Path $apiRoot 'RevitAPI.dll'), (Join-Path $apiRoot 'RevitAPIUI.dll'), (Join-Path $apiRoot 'NewtonSoft.Json.dll'))
     $apiOk = @($apiPaths | Where-Object { !(Test-Path -LiteralPath $_) }).Count -eq 0
     if ($apiOk) {
@@ -102,6 +111,9 @@ if ($Mode -eq 'Check') {
     }
     $rows.Add((ExistsText ("Revit {0}: API/APIUI/Newtonsoft dung va dung nam." -f $RevitVersion) ("Revit {0}: API bundle thieu hoac sai nam." -f $RevitVersion) $apiOk))
     $familyTemplateRoot = "C:\ProgramData\Autodesk\RVT $RevitVersion\Family Templates"
+    if (!(Test-Path -LiteralPath $familyTemplateRoot) -and (Test-Path -LiteralPath (Join-Path $apiRoot 'Family Templates'))) {
+        $familyTemplateRoot = Join-Path $apiRoot 'Family Templates'
+    }
     $mechanicalTemplate = @(Get-ChildItem -LiteralPath $familyTemplateRoot -Recurse -File -Filter '*.rft' -ErrorAction SilentlyContinue | Where-Object { $_.Name -in @('Metric Mechanical Equipment.rft','Mechanical Equipment.rft') } | Select-Object -First 1)
     $genericTemplate = @(Get-ChildItem -LiteralPath $familyTemplateRoot -Recurse -File -Filter '*.rft' -ErrorAction SilentlyContinue | Where-Object { $_.Name -in @('Metric Generic Model.rft','Generic Model.rft') } | Select-Object -First 1)
     if ($mechanicalTemplate.Count -gt 0) { $rows.Add(("Family template: tim thay Mechanical Equipment dung Revit {0}; Family van can Blueprint/source/behavior phu hop." -f $RevitVersion)) }
