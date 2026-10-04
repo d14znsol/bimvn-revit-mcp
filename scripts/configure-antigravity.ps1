@@ -35,20 +35,26 @@ if ($Check) {
 
 foreach ($path in $paths) {
     New-Item -ItemType Directory -Force -Path (Split-Path $path) | Out-Null
-    $config = if (Test-Path $path) { Get-Content -Raw $path | ConvertFrom-Json } else { [PSCustomObject]@{} }
+    $content = if (Test-Path $path) { Get-Content -Raw $path } else { '' }
+    $config = if ([string]::IsNullOrWhiteSpace($content)) { [PSCustomObject]@{} } else { try { $content | ConvertFrom-Json } catch { [PSCustomObject]@{} } }
+    if ($null -eq $config) { $config = [PSCustomObject]@{} }
     if ($null -eq $config.mcpServers) {
-        $config | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{})
+        $config | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{}) -Force
     }
     if ($Remove) {
-        $config.mcpServers.PSObject.Properties.Remove('dscons-revit-mcp')
+        if ($config.mcpServers.PSObject.Properties['dscons-revit-mcp']) {
+            $config.mcpServers.PSObject.Properties.Remove('dscons-revit-mcp')
+        }
         $json = $config | ConvertTo-Json -Depth 10
         [System.IO.File]::WriteAllText($path, $json, [System.Text.UTF8Encoding]::new($false))
         Write-Host "Removed DSCons MCP entry from $path"
         continue
     }
-    $config.mcpServers.PSObject.Properties.Remove('dscons-revit-mcp')
+    if ($config.mcpServers.PSObject.Properties['dscons-revit-mcp']) {
+        $config.mcpServers.PSObject.Properties.Remove('dscons-revit-mcp')
+    }
     $entry = [PSCustomObject]@{ command = 'node'; args = @($server) }
-    $config.mcpServers | Add-Member -NotePropertyName 'dscons-revit-mcp' -NotePropertyValue $entry
+    $config.mcpServers | Add-Member -NotePropertyName 'dscons-revit-mcp' -NotePropertyValue $entry -Force
     # Windows PowerShell's Set-Content -Encoding UTF8 emits a BOM. Antigravity
     # uses Node JSON.parse, which rejects that leading character.
     $json = $config | ConvertTo-Json -Depth 10
